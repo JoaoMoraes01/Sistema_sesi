@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Escolar - SESI</title>
+    <link rel="stylesheet" href="style.css?v=12">
+</head>
+<body data-theme="light">
+    
+    <!-- BOTÃO DE TEMA FLUTUANTE -->
+    <button id="themeToggle" class="btn-theme" title="Alternar Tema">
+        <svg id="themeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+    </button>
+
+    <!-- BOTÃO E PAINEL DE ACESSIBILIDADE -->
+    <button id="accessibilityToggle" class="btn-accessibility" title="Acessibilidade" onclick="toggleAccessibilityPanel()">A+</button>
+    <div id="accessibilityPanel" class="accessibility-panel">
+        <h4>Acessibilidade</h4>
+        <div class="accessibility-row">
+            <span>Tamanho da letra</span>
+            <div class="font-size-controls">
+                <button type="button" onclick="changeFontSize(-1)" title="Diminuir letra">A-</button>
+                <button type="button" onclick="changeFontSize(1)" title="Aumentar letra">A+</button>
+            </div>
+        </div>
+        <div class="accessibility-row">
+            <span>Alto contraste</span>
+            <button type="button" id="highContrastToggle" class="accessibility-toggle" onclick="toggleHighContrast()" title="Alternar alto contraste"></button>
+        </div>
+        <div class="accessibility-row">
+            <span>Fonte p/ dislexia</span>
+            <button type="button" id="dyslexiaFontToggle" class="accessibility-toggle" onclick="toggleDyslexiaFont()" title="Alternar fonte para dislexia"></button>
+        </div>
+        <div class="accessibility-row">
+            <span>Mais espaçamento</span>
+            <button type="button" id="lineSpacingToggle" class="accessibility-toggle" onclick="toggleLineSpacing()" title="Alternar espaçamento entre linhas"></button>
+        </div>
+        <div class="accessibility-row" style="margin-bottom: 0;">
+            <button type="button" onclick="resetAccessibility()" style="background-color: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 6px 10px; font-size: 0.85rem; width: 100%;">Restaurar padrão</button>
+        </div>
+    </div>
+
+    <!-- TELA DE LOGIN -->
+    <div id="loginOverlay">
+        <div class="login-box card">
+            <img src="sesi.png" alt="Logo SESI" id="logoImg" class="sesi-logo" style="display: block; margin: 0 auto 15px auto;">
+            <h3 style="text-align: center; margin-bottom: 5px;">Sistema de Gestão</h3>
+            <p style="text-align: center; margin-bottom: 25px;">Faça login para continuar</p>
+            
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="loginUser">Usuário</label>
+                    <input type="text" id="loginUser" required placeholder="Digite seu usuário">
+                </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label for="loginPass">Senha</label>
+                    <input type="password" id="loginPass" required placeholder="Digite sua senha">
+                </div>
+                <button type="submit" style="width: 100%; margin-top: 25px; padding: 12px; font-size: 1.05rem;">Entrar</button>
+                <p id="loginError" style="color: var(--danger-color); display: none; text-align: center; margin-top: 15px; font-weight: bold;">Usuário ou senha incorretos.</p>
+            </form>
+        </div>
+    </div>
+
+    <!-- CONTAINER DA APLICAÇÃO -->
+    <div id="appContainer">
+        
+        <!-- MENU LATERAL FIXO -->
+        <aside class="sidebar">
+            <img src="sesi.png" alt="Logo SESI" class="sesi-logo">
+            <div class="welcome-msg" id="displayUserName">Bem-vindo!</div>
+            
+            <nav class="nav-menu">
+                <button class="nav-link" id="navCadastro" onclick="switchTab(event, 'tab-cadastro')">Cadastro</button>
+                <button class="nav-link" id="navLista" onclick="switchTab(event, 'tab-lista')">Lista & Busca</button>
+                <button class="nav-link" id="navLembretes" onclick="switchTab(event, 'tab-lembretes')">Lembretes<span id="reminderBadge" style="display:none; margin-left: 6px; background-color: var(--danger-color); color: white; font-size: 0.75rem; font-weight: 700; padding: 2px 7px; border-radius: 10px;"></span></button>
+                <button class="nav-link" id="navVagas" onclick="switchTab(event, 'tab-vagas')">Vagas e Ocupação</button>
+                <button class="nav-link" id="navHistorico" onclick="switchTab(event, 'tab-historico')">Histórico</button>
+                <button class="nav-link" id="navAdmin" onclick="switchTab(event, 'tab-admin')" style="background-color: var(--warning-color); color: white; margin-top: 10px;">Painel Admin</button>
+            </nav>
+            <button class="btn-logout" onclick="logout()">Sair do Sistema</button>
+        </aside>
+
+        <div class="main-wrapper">
+            
+            <!-- SEÇÃO 1: Cadastro de Alunos -->
+            <div id="tab-cadastro" class="tab-content">
+                <div class="card">
+                    <h3 id="formTitle">Formulário de Cadastro</h3>
+                    <p id="formSubtitle">Preencha os dados do requerente e do aluno abaixo.</p>
+                    
+                    <form id="studentForm" class="form-grid" onsubmit="handleFormSubmit(event)">
+                        <input type="hidden" id="editingId" value="">
+                        
+                        <!-- === DADOS DO REQUERENTE === -->
+                        <h4 class="col-span-3 section-title">DADOS DO REQUERENTE</h4>
+                        <div class="form-group col-span-3">
+                            <label for="studentCategory">Categoria</label>
+                            <select id="studentCategory" required>
+                                <option value="" disabled selected>Selecione a categoria</option>
+                                <option value="Industriário">Industriário</option>
+                                <option value="Colaborador">Colaborador (SESI/SENAI/IEL/FIER)</option>
+                                <option value="Empresário Industrial">Empresário Industrial</option>
+                                <option value="Convênio">Convênio</option>
+                                <option value="Comunidade">Comunidade</option>
+                            </select>
+                        </div>
+
+                        <!-- === DADOS DO CANDIDATO === -->
+                        <h4 class="col-span-3 section-title">DADOS DO CANDIDATO (ALUNO)</h4>
+                        <div class="form-group col-span-2">
+                            <label for="studentName">Nome completo</label>
+                            <input type="text" id="studentName" placeholder="Nome completo do aluno" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="studentBirth">Data de Nascimento</label>
+                            <input type="date" id="studentBirth" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="studentRg">Identidade nº</label>
+                            <input type="text" id="studentRg" placeholder="RG do aluno">
+                        </div>
+                        <div class="form-group">
+                            <label for="studentCpf">CPF</label>
+                            <input type="text" id="studentCpf" placeholder="000.000.000-00" maxlength="14" oninput="this.value = formatCPF(this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label for="studentNat">Naturalidade</label>
+                            <input type="text" id="studentNat" placeholder="Cidade/UF">
+                        </div>
+                        <div class="form-group">
+                            <label for="studentGrade">Série/Ano</label>
+                            <select id="studentGrade" onchange="toggleOtherField('studentGrade')" required>
+                                <option value="" disabled selected>Selecione a série</option>
+                                <option value="Educação Infantil">Educação Infantil</option>
+                                <option value="1º Ano Fundamental">1º Ano Fundamental</option>
+                                <option value="2º Ano Fundamental">2º Ano Fundamental</option>
+                                <option value="3º Ano Fundamental">3º Ano Fundamental</option>
+                                <option value="4º Ano Fundamental">4º Ano Fundamental</option>
+                                <option value="5º Ano Fundamental">5º Ano Fundamental</option>
+                                <option value="6º Ano Fundamental">6º Ano Fundamental</option>
+                                <option value="7º Ano Fundamental">7º Ano Fundamental</option>
+                                <option value="8º Ano Fundamental">8º Ano Fundamental</option>
+                                <option value="9º Ano Fundamental">9º Ano Fundamental</option>
+                                <option value="1º Ano Médio">1º Ano Médio</option>
+                                <option value="2º Ano Médio">2º Ano Médio</option>
+                                <option value="3º Ano Médio">3º Ano Médio</option>
+                                <option value="Outro">Outro</option>
+                            </select>
+                            <input type="text" id="studentGradeOther" placeholder="Digite a série" style="display:none; margin-top: 8px;">
+                        </div>
+                        <div class="form-group col-span-2">
+                            <label for="studentShift">Turno</label>
+                            <select id="studentShift" required>
+                                <option value="" disabled selected>Selecione o turno</option>
+                                <option value="Matutino">Matutino</option>
+                                <option value="Vespertino">Vespertino</option>
+                                <option value="Qualquer turno">Qualquer turno</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="studentLaudo">Possui Laudo Médico?</label>
+                            <select id="studentLaudo" onchange="checkLaudo()" required>
+                                <option value="Não">Não</option>
+                                <option value="Sim">Sim</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-span-2 conditional-box" id="laudoBox">
+                            <label for="laudoDesc">Qual a necessidade?</label>
+                            <input type="text" id="laudoDesc" placeholder="Descreva a necessidade médica">
+                        </div>
+                        <div class="form-group">
+                            <label for="studentIrmaoQty">Quantos irmãos matriculados?</label>
+                            <select id="studentIrmaoQty" onchange="checkIrmao()" required>
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-span-3 conditional-box" id="irmaoBox">
+                            <!-- Campos de irmãos gerados pelo JS -->
+                        </div>
+
+                        <!-- === DADOS DO RESPONSÁVEL LEGAL === -->
+                        <h4 class="col-span-3 section-title">DADOS DO RESPONSÁVEL LEGAL (Termo LGPD)</h4>
+                        <div class="form-group col-span-2">
+                            <label for="respName">Nome Completo</label>
+                            <input type="text" id="respName" placeholder="Nome do responsável" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="respBirth">Data de Nascimento</label>
+                            <input type="date" id="respBirth">
+                        </div>
+                        <div class="form-group">
+                            <label for="respRg">Identidade nº</label>
+                            <input type="text" id="respRg" placeholder="RG do responsável">
+                        </div>
+                        <div class="form-group">
+                            <label for="respCpf">CPF</label>
+                            <input type="text" id="respCpf" placeholder="000.000.000-00" maxlength="14" oninput="this.value = formatCPF(this.value)" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="respNat">Naturalidade</label>
+                            <input type="text" id="respNat" placeholder="Cidade/UF">
+                        </div>
+                        <div class="form-group col-span-2">
+                            <label for="respAddress">Endereço</label>
+                            <input type="text" id="respAddress" placeholder="Rua, Avenida...">
+                        </div>
+                        <div class="form-group">
+                            <label for="respNum">Nº</label>
+                            <input type="text" id="respNum" placeholder="Número">
+                        </div>
+                        <div class="form-group">
+                            <label for="respBairro">Bairro</label>
+                            <input type="text" id="respBairro" placeholder="Bairro">
+                        </div>
+                        <div class="form-group">
+                            <label for="respCep">CEP</label>
+                            <input type="text" id="respCep" placeholder="00000-000" maxlength="9" inputmode="numeric" oninput="this.value = formatCEP(this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label for="respCivil">Estado Civil</label>
+                            <select id="respCivil" onchange="toggleOtherField('respCivil')">
+                                <option value="" disabled selected>Selecione</option>
+                                <option value="Solteiro(a)">Solteiro(a)</option>
+                                <option value="Casado(a)">Casado(a)</option>
+                                <option value="Divorciado(a)">Divorciado(a)</option>
+                                <option value="Viúvo(a)">Viúvo(a)</option>
+                                <option value="União Estável">União Estável</option>
+                                <option value="Outro">Outro</option>
+                            </select>
+                            <input type="text" id="respCivilOther" placeholder="Digite o estado civil" style="display:none; margin-top: 8px;">
+                        </div>
+                        <div class="form-group col-span-2">
+                            <label for="respEduc">Grau de Escolaridade</label>
+                            <input type="text" id="respEduc" placeholder="Ex: Ensino Médio Completo">
+                        </div>
+                        <div class="form-group">
+                            <label for="respEmail">Email Principal</label>
+                            <input type="email" id="respEmail" placeholder="seuemail@exemplo.com">
+                        </div>
+                        <div class="form-group col-span-2">
+                            <label for="respCompany">Empresa que trabalha</label>
+                            <input type="text" id="respCompany" placeholder="Nome da empresa">
+                        </div>
+                        <div class="form-group">
+                            <label for="respCnpj">CNPJ da Empresa</label>
+                            <input type="text" id="respCnpj" placeholder="00.000.000/0001-00" maxlength="18" oninput="this.value = formatCNPJ(this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label for="telPai">Telefone(s) (Pai)</label>
+                            <input type="text" id="telPai" placeholder="(00) 00000-0000" maxlength="15" inputmode="numeric" oninput="this.value = formatTelefone(this.value)">
+                        </div>
+                        <div class="form-group col-span-2">
+                            <label for="emailPai">E-mail (Pai)</label>
+                            <input type="email" id="emailPai">
+                        </div>
+                        <div class="form-group">
+                            <label for="telMae">Telefone(s) (Mãe)</label>
+                            <input type="text" id="telMae" placeholder="(00) 00000-0000">
+                        </div>
+                        <div class="form-group col-span-2">
+                            <label for="emailMae">E-mail (Mãe)</label>
+                            <input type="email" id="emailMae">
+                        </div>
+                        <div class="form-group">
+                            <label for="telOutro">Telefone(s) (Outro)</label>
+                            <input type="text" id="telOutro" placeholder="(00) 00000-0000">
+                        </div>
+                        <div class="form-group col-span-2">
+                            <label for="emailOutro">E-mail (Responsável)</label>
+                            <input type="email" id="emailOutro">
+                        </div>
+                        <div class="form-group">
+                            <label for="respFin">Responsável Financeiro</label>
+                            <select id="respFin" onchange="toggleOtherField('respFin')" required>
+                                <option value="" disabled selected>Selecione</option>
+                                <option value="Pai">Pai</option>
+                                <option value="Mãe">Mãe</option>
+                                <option value="Outro">Outro</option>
+                            </select>
+                            <input type="text" id="respFinOther" placeholder="Quem é o responsável financeiro?" style="display:none; margin-top: 8px;">
+                        </div>
+                        <div class="form-group col-span-2">
+                            <label for="respAcad">Responsável Acadêmico</label>
+                            <select id="respAcad" onchange="toggleOtherField('respAcad')" required>
+                                <option value="" disabled selected>Selecione</option>
+                                <option value="Pai">Pai</option>
+                                <option value="Mãe">Mãe</option>
+                                <option value="Outro">Outro</option>
+                            </select>
+                            <input type="text" id="respAcadOther" placeholder="Quem é o responsável acadêmico?" style="display:none; margin-top: 8px;">
+                        </div>
+
+                        <!-- Botões de Ação -->
+                        <div class="form-group col-span-3" style="display: flex; gap: 15px; margin-top: 20px;">
+                            <button type="submit" id="btnSubmitForm" style="flex: 1; padding: 14px; font-size: 1.05rem;">Salvar Cadastro</button>
+                            <button type="button" id="btnCancelEdit" onclick="cancelEdit()" style="background-color: #64748b; display: none; color: #ffffff;">Cancelar Edição</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 2: Lista, Pesquisa e Filtro Geral -->
+            <div id="tab-lista" class="tab-content">
+                <div class="card">
+                    <h3>Lista e Busca de Candidatos</h3>
+                    <p>Consulte, filtre e gerencie os cadastros efetuados.</p>
+                    <div class="actions-bar">
+                        <input type="text" id="searchInput" placeholder="Pesquisar por nome ou CPF..." oninput="filterTable()">
+                        <select id="filterCategory" onchange="filterTable()">
+                            <option value="all">Todas as Categorias</option>
+                            <option value="Industriário">Industriário</option>
+                            <option value="Colaborador">Colaborador</option>
+                            <option value="Empresário Industrial">Empresário Industrial</option>
+                            <option value="Convênio">Convênio</option>
+                            <option value="Comunidade">Comunidade</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Posição Geral</th>
+                                <th>Data/Hora</th>
+                                <th>Nome / CPF</th>
+                                <th>Série / Turno</th>
+                                <th>Categoria</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentTableBody">
+                            <!-- Preenchido via JavaScript -->
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 3: Vagas e Alocação -->
+            <div id="tab-vagas" class="tab-content">
+                <div class="card">
+                    <h3>Quadro de Alocação de Vagas</h3>
+                    <p>Defina o número de vagas da escola para ver quem entra e quem fica na lista de espera.</p>
+                    
+                    <div style="margin-bottom: 25px;">
+                        <label for="totalVagasInput" style="font-weight: 600; font-size: 1.05rem;">Total de Vagas Oferecidas:</label>
+                        <input type="number" id="totalVagasInput" value="5" min="1" oninput="renderVagas()" style="margin-left: 10px; width: 120px;">
+                    </div>
+                    <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Classificação</th>
+                                <th>Data</th>
+                                <th>Nome do Aluno</th>
+                                <th>Categoria</th>
+                                <th>Situação da Vaga</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vagasTableBody">
+                            <!-- Preenchido via JavaScript -->
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO: Lembretes (pessoal, por usuário) -->
+            <div id="tab-lembretes" class="tab-content">
+                <div class="card">
+                    <h3>Lembretes</h3>
+                    <p>Anotações rápidas só suas. Marque a caixinha quando resolver.</p>
+
+                    <form onsubmit="addReminder(event)" style="display: flex; gap: 15px; margin-bottom: 30px; flex-wrap: wrap;">
+                        <input type="text" id="reminderInput" placeholder="Digite um novo lembrete..." style="flex: 1; min-width: 250px;" required>
+                        <button type="submit">Adicionar</button>
+                    </form>
+
+                    <div class="section-title">Pendentes</div>
+                    <div id="reminderPendingList" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                        <!-- Preenchido via JavaScript -->
+                    </div>
+
+                    <div style="margin-top: 30px;">
+                        <button type="button" onclick="toggleCompletedReminders()" style="background-color: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 8px 16px;">
+                            <span id="completedToggleLabel">▸ Mostrar concluídos</span>
+                        </button>
+                        <div id="reminderCompletedSection" style="display: none; margin-top: 15px;">
+                            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+                                <button class="btn-danger" onclick="clearCompletedReminders()" style="padding: 6px 14px; font-size: 0.85rem;">Limpar Concluídos</button>
+                            </div>
+                            <div id="reminderCompletedList" style="display: flex; flex-direction: column; gap: 10px;">
+                                <!-- Preenchido via JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 4: Histórico -->
+            <div id="tab-historico" class="tab-content">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px;">
+                        <div>
+                            <h3>Registro de Modificações e Atividades</h3>
+                            <p>Acompanhe o log de tudo o que foi cadastrado, atualizado ou excluído no sistema.</p>
+                        </div>
+                        <button class="btn-danger" onclick="clearHistory()" style="white-space: nowrap;">Limpar Histórico</button>
+                    </div>
+                    
+                    <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Horário</th>
+                                <th>Ação</th>
+                                <th>Detalhes</th>
+                                <th>Usuário Responsável</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 5: ADMINISTRAÇÃO -->
+            <div id="tab-admin" class="tab-content">
+                <div class="card">
+                    <h3 id="userFormTitle">Gerenciamento de Usuários</h3>
+                    <p id="userFormSubtitle">Crie, edite ou remova credenciais de acesso para a equipe escolar.</p>
+                    
+                    <form class="form-grid" id="userForm" onsubmit="handleCreateUser(event)" style="border-bottom: 1px solid var(--border-color); padding-bottom: 30px; margin-bottom: 30px;">
+                        <input type="hidden" id="editingUserId" value=""> 
+                        
+                        <div class="form-group">
+                            <label>Nome do Funcionário</label>
+                            <input type="text" id="newUserName" required placeholder="Nome completo">
+                        </div>
+                        <div class="form-group">
+                            <label>Nome de Usuário (Login)</label>
+                            <input type="text" id="newUserLogin" required placeholder="Ex: joao.silva">
+                        </div>
+                        <div class="form-group">
+                            <label>Senha</label>
+                            <input type="password" id="newUserPass" required placeholder="Senha de acesso">
+                        </div>
+                        <div class="form-group">
+                            <label>Nível de Acesso</label>
+                            <select id="newUserRole" required>
+                                <option value="user">Atendente / Secretário</option>
+                                <option value="admin">Administrador</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group col-span-3" style="display: flex; gap: 15px; justify-content: flex-end;">
+                            <button type="submit" id="btnSubmitUser" class="btn-print">Adicionar Novo Usuário</button>
+                            <button type="button" id="btnCancelUserEdit" onclick="cancelUserEdit()" style="background-color: #64748b; display: none; color: #ffffff;">Cancelar Edição</button>
+                        </div>
+                    </form>
+
+                    <h4>Usuários Cadastrados</h4>
+                    <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Usuário (Login)</th>
+                                <th>Nível de Acesso</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <!-- Preenchido via JavaScript -->
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- MODAL DO RECIBO -->
+        <div id="sesiReceiptModal">
+            <div class="receipt-content">
+                <div style="text-align: center;">
+                    <img src="sesi.png" alt="Logo SESI" style="max-height: 45px; margin-bottom: 10px;">
+                    <h2>Comprovante de Cadastro</h2>
+                    <p style="color: #666;">Fila de Matrículas — Sistema SESI</p>
+                </div>
+                <hr style="margin: 12px 0;">
+                <div id="receiptBody"><!-- Preenchido via JavaScript --></div>
+                <div class="no-print" style="display: flex; gap: 15px; justify-content: center; margin-top: 25px;">
+                    <button class="btn-print" onclick="window.print()">🖨️ Imprimir</button>
+                    <button onclick="closeReceipt()" style="background-color: #64748b;">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div> 
+
+    <!-- BANNER DE SUCESSO (grande e centralizado, bem mais visível que o toast de canto) -->
+    <div id="successBanner" class="success-banner-overlay">
+        <div class="success-banner-card">
+            <div class="success-banner-icon">✓</div>
+            <h2 id="successBannerTitle">Sucesso!</h2>
+            <p id="successBannerText"></p>
+            <button onclick="closeSuccessBanner()">OK, entendi</button>
+        </div>
+    </div>
+
+    <div id="toastBox"></div>
+    <script type="module" src="js/main.js?v=12"></script>
+</body>
+</html>
