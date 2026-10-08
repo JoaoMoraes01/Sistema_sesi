@@ -14,7 +14,7 @@
 import { applyAccessibilityPreferences, changeFontSize, toggleHighContrast, toggleDyslexiaFont, toggleLineSpacing, resetAccessibility, toggleAccessibilityPanel } from './accessibility.js';
 import { closeSuccessBanner } from './ui.js';
 import { restoreSession, toggleTheme, handleLogin, logout, switchTab } from './auth.js';
-import { checkLaudo, checkIrmao, handleFormSubmit, closeReceipt, showReceiptById, renderVagas, filterTable, editStudent, cancelEdit, deleteStudent, formatCPF, formatCNPJ, formatCEP, formatTelefone, toggleOtherField } from './students.js';
+import { checkLaudo, checkIrmao, handleFormSubmit, closeReceipt, showReceiptById, renderVagas, filterTable, editStudent, cancelEdit, deleteStudent, formatCPF, formatCNPJ, formatCEP, formatTelefone, formatRG, onlyLetters, toggleOtherField } from './students.js';
 import { clearHistory } from './history.js';
 import { addReminder, toggleReminder, deleteReminder, clearCompletedReminders, toggleCompletedReminders } from './reminders.js';
 import { handleCreateUser, editUser, cancelUserEdit, apagarUsuario } from './users.js';
@@ -32,12 +32,37 @@ function initEvents() {
         btnTheme.addEventListener('click', toggleTheme);
     }
 
+    // Fecha o painel de acessibilidade ao clicar fora dele
     document.addEventListener('click', (event) => {
         const panel = document.getElementById('accessibilityPanel');
         const toggleBtn = document.getElementById('accessibilityToggle');
         if (!panel || !panel.classList.contains('open')) return;
         if (!panel.contains(event.target) && event.target !== toggleBtn) {
             panel.classList.remove('open');
+        }
+    });
+
+    // --- MENU MOBILE ---
+    // No mobile (<= 900px) a sidebar vira off-canvas. Ao clicar em qualquer
+    // link de navegação ou no botão "Sair", o menu precisa se fechar sozinho
+    // para não ficar por cima do conteúdo. No desktop (> 900px) isso não tem
+    // efeito (a classe .open nem chega a ser usada).
+    document.querySelectorAll('.sidebar .nav-link, .sidebar .btn-logout').forEach((el) => {
+        el.addEventListener('click', () => {
+            if (window.matchMedia('(max-width: 900px)').matches) {
+                document.querySelector('.sidebar')?.classList.remove('open');
+            }
+        });
+    });
+
+    // Fecha o menu mobile ao clicar fora dele (mas não se o clique for no
+    // próprio menu nem no botão hambúrguer que o abre).
+    document.addEventListener('click', (event) => {
+        const sidebar = document.querySelector('.sidebar');
+        const menuBtn = document.querySelector('.btn-menu');
+        if (!sidebar || !sidebar.classList.contains('open')) return;
+        if (!sidebar.contains(event.target) && event.target !== menuBtn) {
+            sidebar.classList.remove('open');
         }
     });
 }
@@ -63,7 +88,7 @@ Object.assign(window, {
     handleLogin, logout, switchTab,
     // alunos
     checkLaudo, checkIrmao, handleFormSubmit, closeReceipt, showReceiptById, renderVagas, filterTable, editStudent, cancelEdit, deleteStudent,
-    formatCPF, formatCNPJ, formatCEP, formatTelefone, toggleOtherField,
+    formatCPF, formatCNPJ, formatCEP, formatTelefone, formatRG, onlyLetters, toggleOtherField,
     // histórico
     clearHistory,
     // lembretes
