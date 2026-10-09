@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -67,6 +67,29 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="API Gestão Escolar SESI", version="1.0.0", lifespan=lifespan)
+
+
+# --- ANTI-CACHE (correção do erro "304 Not Modified") ---
+#
+# Problema que isso resolve: o navegador guardava em cache o index.html e os
+# arquivos .js/.css. Quando o sistema era atualizado no servidor, o navegador
+# continuava servindo a versão VELHA do cache — tela de login travada, funções
+# "não encontradas" no console, etc. O famoso erro "304 Not Modified" é
+# justamente o servidor dizendo "usa a versão que você já tem aí".
+#
+# Regra: HTML, JS e CSS são SEMPRE revalidados (no-store/no-cache).
+# Imagens (.png, .ico, etc.) continuam podendo ser cacheadas normalmente,
+# porque mudam raramente e economizam banda.
+@app.middleware("http")
+async def desativar_cache_arquivos_estaticos(request: Request, call_next):
+    response = await call_next(request)
+    caminho = request.url.path.lower()
+    if caminho == "/" or caminho.endswith(('.html', '.js', '.css')):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 
 app.add_middleware(
     CORSMiddleware,
