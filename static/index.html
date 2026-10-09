@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body data-theme="light">
-
+    
     <!-- BOTÃO DE TEMA FLUTUANTE -->
     <button id="themeToggle" class="btn-theme" title="Alternar Tema">
         <svg id="themeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -49,15 +49,15 @@
             <img src="sesi.png" alt="Logo SESI" id="logoImg" class="sesi-logo" style="display: block; margin: 0 auto 15px auto;">
             <h3 style="text-align: center; margin-bottom: 5px;">Sistema de Gestão</h3>
             <p style="text-align: center; margin-bottom: 25px;">Faça login para continuar</p>
-
+            
             <form onsubmit="handleLogin(event)">
                 <div class="form-group">
                     <label for="loginUser">Usuário</label>
-                    <input type="text" id="loginUser" required placeholder="Digite seu usuário" autocomplete="username">
+                    <input type="text" id="loginUser" required placeholder="Digite seu usuário">
                 </div>
                 <div class="form-group" style="margin-top: 15px;">
                     <label for="loginPass">Senha</label>
-                    <input type="password" id="loginPass" required placeholder="Digite sua senha" autocomplete="current-password">
+                    <input type="password" id="loginPass" required placeholder="Digite sua senha">
                 </div>
                 <button type="submit" style="width: 100%; margin-top: 25px; padding: 12px; font-size: 1.05rem;">Entrar</button>
                 <p id="loginError" style="color: var(--danger-color); display: none; text-align: center; margin-top: 15px; font-weight: bold;">Usuário ou senha incorretos.</p>
@@ -67,15 +67,12 @@
 
     <!-- CONTAINER DA APLICAÇÃO -->
     <div id="appContainer">
-
-        <!-- BOTÃO HAMBÚRGUER (visível apenas no mobile, controlado pelo CSS) -->
-        <button class="btn-menu" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Abrir menu">☰</button>
-
+        
         <!-- MENU LATERAL FIXO -->
         <aside class="sidebar">
             <img src="sesi.png" alt="Logo SESI" class="sesi-logo">
             <div class="welcome-msg" id="displayUserName">Bem-vindo!</div>
-
+            
             <nav class="nav-menu">
                 <button class="nav-link" id="navCadastro" onclick="switchTab(event, 'tab-cadastro')">Cadastro</button>
                 <button class="nav-link" id="navLista" onclick="switchTab(event, 'tab-lista')">Lista & Busca</button>
@@ -88,16 +85,16 @@
         </aside>
 
         <div class="main-wrapper">
-
+            
             <!-- SEÇÃO 1: Cadastro de Alunos -->
             <div id="tab-cadastro" class="tab-content">
                 <div class="card">
                     <h3 id="formTitle">Formulário de Cadastro</h3>
                     <p id="formSubtitle">Preencha os dados do requerente e do aluno abaixo.</p>
-
+                    
                     <form id="studentForm" class="form-grid" onsubmit="handleFormSubmit(event)">
                         <input type="hidden" id="editingId" value="">
-
+                        
                         <!-- === DADOS DO REQUERENTE === -->
                         <h4 class="col-span-3 section-title">DADOS DO REQUERENTE</h4>
                         <div class="form-group col-span-3">
@@ -116,12 +113,7 @@
                         <h4 class="col-span-3 section-title">DADOS DO CANDIDATO (ALUNO)</h4>
                         <div class="form-group col-span-2">
                             <label for="studentName">Nome completo</label>
-                            <input type="text" id="studentName" placeholder="Nome completo do aluno"
-                                   required maxlength="200"
-                                   pattern="[A-Za-zÀ-ÿ' \-]+"
-                                   title="Use apenas letras, espaços, hífen e apóstrofo."
-                                   autocomplete="name"
-                                   oninput="this.value = onlyLetters(this.value)">
+                            <input type="text" id="studentName" placeholder="Nome completo do aluno" required>
                         </div>
                         <div class="form-group">
                             <label for="studentBirth">Data de Nascimento</label>
@@ -129,18 +121,15 @@
                         </div>
                         <div class="form-group">
                             <label for="studentRg">Identidade nº</label>
-                            <input type="text" id="studentRg" placeholder="00.000.000-0"
-                                   maxlength="12" inputmode="numeric"
-                                   oninput="this.value = formatRG(this.value)">
+                            <input type="text" id="studentRg" placeholder="RG do aluno">
                         </div>
                         <div class="form-group">
                             <label for="studentCpf">CPF</label>
-                            <input type="text" id="studentCpf" placeholder="000.000.000-00" maxlength="14"
-                                   inputmode="numeric" oninput="this.value = formatCPF(this.value)">
+                            <input type="text" id="studentCpf" placeholder="000.000.000-00" maxlength="14" oninput="this.value = formatCPF(this.value)">
                         </div>
                         <div class="form-group">
                             <label for="studentNat">Naturalidade</label>
-                            <input type="text" id="studentNat" placeholder="Cidade/UF" maxlength="100">
+                            <input type="text" id="studentNat" placeholder="Cidade/UF">
                         </div>
                         <div class="form-group">
                             <label for="studentGrade">Série/Ano</label>
@@ -161,7 +150,7 @@
                                 <option value="3º Ano Médio">3º Ano Médio</option>
                                 <option value="Outro">Outro</option>
                             </select>
-                            <input type="text" id="studentGradeOther" placeholder="Digite a série" maxlength="100" style="display:none; margin-top: 8px;">
+                            <input type="text" id="studentGradeOther" placeholder="Digite a série" style="display:none; margin-top: 8px;">
                         </div>
                         <div class="form-group col-span-2">
                             <label for="studentShift">Turno</label>
@@ -181,7 +170,7 @@
                         </div>
                         <div class="form-group col-span-2 conditional-box" id="laudoBox">
                             <label for="laudoDesc">Qual a necessidade?</label>
-                            <input type="text" id="laudoDesc" placeholder="Descreva a necessidade médica" maxlength="1000">
+                            <input type="text" id="laudoDesc" placeholder="Descreva a necessidade médica">
                         </div>
                         <div class="form-group">
                             <label for="studentIrmaoQty">Quantos irmãos matriculados?</label>
@@ -207,12 +196,7 @@
                         <h4 class="col-span-3 section-title">DADOS DO RESPONSÁVEL LEGAL (Termo LGPD)</h4>
                         <div class="form-group col-span-2">
                             <label for="respName">Nome Completo</label>
-                            <input type="text" id="respName" placeholder="Nome do responsável"
-                                   required maxlength="200"
-                                   pattern="[A-Za-zÀ-ÿ' \-]+"
-                                   title="Use apenas letras, espaços, hífen e apóstrofo."
-                                   autocomplete="name"
-                                   oninput="this.value = onlyLetters(this.value)">
+                            <input type="text" id="respName" placeholder="Nome do responsável" required>
                         </div>
                         <div class="form-group">
                             <label for="respBirth">Data de Nascimento</label>
@@ -220,35 +204,31 @@
                         </div>
                         <div class="form-group">
                             <label for="respRg">Identidade nº</label>
-                            <input type="text" id="respRg" placeholder="00.000.000-0"
-                                   maxlength="12" inputmode="numeric"
-                                   oninput="this.value = formatRG(this.value)">
+                            <input type="text" id="respRg" placeholder="RG do responsável">
                         </div>
                         <div class="form-group">
                             <label for="respCpf">CPF</label>
-                            <input type="text" id="respCpf" placeholder="000.000.000-00" maxlength="14"
-                                   inputmode="numeric" oninput="this.value = formatCPF(this.value)" required>
+                            <input type="text" id="respCpf" placeholder="000.000.000-00" maxlength="14" oninput="this.value = formatCPF(this.value)" required>
                         </div>
                         <div class="form-group">
                             <label for="respNat">Naturalidade</label>
-                            <input type="text" id="respNat" placeholder="Cidade/UF" maxlength="100">
+                            <input type="text" id="respNat" placeholder="Cidade/UF">
                         </div>
                         <div class="form-group col-span-2">
                             <label for="respAddress">Endereço</label>
-                            <input type="text" id="respAddress" placeholder="Rua, Avenida..." maxlength="255">
+                            <input type="text" id="respAddress" placeholder="Rua, Avenida...">
                         </div>
                         <div class="form-group">
                             <label for="respNum">Nº</label>
-                            <input type="text" id="respNum" placeholder="Número" maxlength="20">
+                            <input type="text" id="respNum" placeholder="Número">
                         </div>
                         <div class="form-group">
                             <label for="respBairro">Bairro</label>
-                            <input type="text" id="respBairro" placeholder="Bairro" maxlength="100">
+                            <input type="text" id="respBairro" placeholder="Bairro">
                         </div>
                         <div class="form-group">
                             <label for="respCep">CEP</label>
-                            <input type="text" id="respCep" placeholder="00000-000" maxlength="9"
-                                   inputmode="numeric" oninput="this.value = formatCEP(this.value)">
+                            <input type="text" id="respCep" placeholder="00000-000" maxlength="9" inputmode="numeric" oninput="this.value = formatCEP(this.value)">
                         </div>
                         <div class="form-group">
                             <label for="respCivil">Estado Civil</label>
@@ -261,62 +241,47 @@
                                 <option value="União Estável">União Estável</option>
                                 <option value="Outro">Outro</option>
                             </select>
-                            <input type="text" id="respCivilOther" placeholder="Digite o estado civil" maxlength="50" style="display:none; margin-top: 8px;">
+                            <input type="text" id="respCivilOther" placeholder="Digite o estado civil" style="display:none; margin-top: 8px;">
                         </div>
                         <div class="form-group col-span-2">
                             <label for="respEduc">Grau de Escolaridade</label>
-                            <select id="respEduc">
-                                <option value="" disabled selected>Selecione</option>
-                                <option value="Fundamental I incompleto">Fundamental I incompleto</option>
-                                <option value="Fundamental I completo">Fundamental I completo</option>
-                                <option value="Fundamental II incompleto">Fundamental II incompleto</option>
-                                <option value="Fundamental II completo">Fundamental II completo</option>
-                                <option value="Médio incompleto">Médio incompleto</option>
-                                <option value="Médio completo">Médio completo</option>
-                                <option value="Superior incompleto">Superior incompleto</option>
-                                <option value="Superior completo">Superior completo</option>
-                                <option value="Pós-graduação">Pós-graduação</option>
-                            </select>
+                            <input type="text" id="respEduc" placeholder="Ex: Ensino Médio Completo">
                         </div>
                         <div class="form-group">
                             <label for="respEmail">Email Principal</label>
-                            <input type="email" id="respEmail" placeholder="seuemail@exemplo.com" maxlength="150">
+                            <input type="email" id="respEmail" placeholder="seuemail@exemplo.com">
                         </div>
                         <div class="form-group col-span-2">
                             <label for="respCompany">Empresa que trabalha</label>
-                            <input type="text" id="respCompany" placeholder="Nome da empresa" maxlength="150">
+                            <input type="text" id="respCompany" placeholder="Nome da empresa">
                         </div>
                         <div class="form-group">
                             <label for="respCnpj">CNPJ da Empresa</label>
-                            <input type="text" id="respCnpj" placeholder="00.000.000/0001-00" maxlength="18"
-                                   inputmode="numeric" oninput="this.value = formatCNPJ(this.value)">
+                            <input type="text" id="respCnpj" placeholder="00.000.000/0001-00" maxlength="18" oninput="this.value = formatCNPJ(this.value)">
                         </div>
                         <div class="form-group">
                             <label for="telPai">Telefone(s) (Pai)</label>
-                            <input type="text" id="telPai" placeholder="(00) 00000-0000" maxlength="15"
-                                   inputmode="numeric" oninput="this.value = formatTelefone(this.value)">
+                            <input type="text" id="telPai" placeholder="(00) 00000-0000" maxlength="15" inputmode="numeric" oninput="this.value = formatTelefone(this.value)">
                         </div>
                         <div class="form-group col-span-2">
                             <label for="emailPai">E-mail (Pai)</label>
-                            <input type="email" id="emailPai" maxlength="150">
+                            <input type="email" id="emailPai">
                         </div>
                         <div class="form-group">
                             <label for="telMae">Telefone(s) (Mãe)</label>
-                            <input type="text" id="telMae" placeholder="(00) 00000-0000" maxlength="15"
-                                   inputmode="numeric" oninput="this.value = formatTelefone(this.value)">
+                            <input type="text" id="telMae" placeholder="(00) 00000-0000">
                         </div>
                         <div class="form-group col-span-2">
                             <label for="emailMae">E-mail (Mãe)</label>
-                            <input type="email" id="emailMae" maxlength="150">
+                            <input type="email" id="emailMae">
                         </div>
                         <div class="form-group">
                             <label for="telOutro">Telefone(s) (Outro)</label>
-                            <input type="text" id="telOutro" placeholder="(00) 00000-0000" maxlength="15"
-                                   inputmode="numeric" oninput="this.value = formatTelefone(this.value)">
+                            <input type="text" id="telOutro" placeholder="(00) 00000-0000">
                         </div>
                         <div class="form-group col-span-2">
                             <label for="emailOutro">E-mail (Responsável)</label>
-                            <input type="email" id="emailOutro" maxlength="150">
+                            <input type="email" id="emailOutro">
                         </div>
                         <div class="form-group">
                             <label for="respFin">Responsável Financeiro</label>
@@ -324,15 +289,9 @@
                                 <option value="" disabled selected>Selecione</option>
                                 <option value="Pai">Pai</option>
                                 <option value="Mãe">Mãe</option>
-                                <option value="Avô/Avó">Avô/Avó</option>
-                                <option value="Tio(a)">Tio(a)</option>
-                                <option value="Irmão(ã) maior">Irmão(ã) maior de idade</option>
-                                <option value="Tutor(a) legal">Tutor(a) legal</option>
-                                <option value="Guardião(ã) judicial">Guardião(ã) judicial</option>
                                 <option value="Outro">Outro</option>
                             </select>
-                            <input type="text" id="respFinOther" placeholder="Quem é o responsável financeiro?"
-                                   maxlength="50" style="display:none; margin-top: 8px;">
+                            <input type="text" id="respFinOther" placeholder="Quem é o responsável financeiro?" style="display:none; margin-top: 8px;">
                         </div>
                         <div class="form-group col-span-2">
                             <label for="respAcad">Responsável Acadêmico</label>
@@ -340,15 +299,9 @@
                                 <option value="" disabled selected>Selecione</option>
                                 <option value="Pai">Pai</option>
                                 <option value="Mãe">Mãe</option>
-                                <option value="Avô/Avó">Avô/Avó</option>
-                                <option value="Tio(a)">Tio(a)</option>
-                                <option value="Irmão(ã) maior">Irmão(ã) maior de idade</option>
-                                <option value="Tutor(a) legal">Tutor(a) legal</option>
-                                <option value="Guardião(ã) judicial">Guardião(ã) judicial</option>
                                 <option value="Outro">Outro</option>
                             </select>
-                            <input type="text" id="respAcadOther" placeholder="Quem é o responsável acadêmico?"
-                                   maxlength="50" style="display:none; margin-top: 8px;">
+                            <input type="text" id="respAcadOther" placeholder="Quem é o responsável acadêmico?" style="display:none; margin-top: 8px;">
                         </div>
 
                         <!-- Botões de Ação -->
@@ -366,8 +319,8 @@
                     <h3>Lista e Busca de Candidatos</h3>
                     <p>Consulte, filtre e gerencie os cadastros efetuados.</p>
                     <div class="actions-bar">
-                        <input type="text" id="searchInput" placeholder="Pesquisar por nome ou CPF..." oninput="filterTable()" maxlength="200">
-                        <select id="filterCategory" onchange="filterTable()">
+                        <input type="text" id="searchInput" placeholder="Pesquisar por nome (ex: joao) ou CPF (ex: 11111111111)..." oninput="filterTable()" autocomplete="off">
+                        <select id="filterCategory" onchange="filterTable(true)">
                             <option value="all">Todas as Categorias</option>
                             <option value="Industriário">Industriário</option>
                             <option value="Colaborador">Colaborador</option>
@@ -376,6 +329,7 @@
                             <option value="Comunidade">Comunidade</option>
                         </select>
                     </div>
+                    <div id="searchResultCount" class="search-result-count" style="display: none;"></div>
                     <div class="table-responsive">
                     <table>
                         <thead>
@@ -401,7 +355,7 @@
                 <div class="card">
                     <h3>Quadro de Alocação de Vagas</h3>
                     <p>Defina o número de vagas da escola para ver quem entra e quem fica na lista de espera.</p>
-
+                    
                     <div style="margin-bottom: 25px;">
                         <label for="totalVagasInput" style="font-weight: 600; font-size: 1.05rem;">Total de Vagas Oferecidas:</label>
                         <input type="number" id="totalVagasInput" value="5" min="1" oninput="renderVagas()" style="margin-left: 10px; width: 120px;">
@@ -433,7 +387,7 @@
                     <p>Anotações rápidas só suas. Marque a caixinha quando resolver.</p>
 
                     <form onsubmit="addReminder(event)" style="display: flex; gap: 15px; margin-bottom: 30px; flex-wrap: wrap;">
-                        <input type="text" id="reminderInput" placeholder="Digite um novo lembrete..." style="flex: 1; min-width: 250px;" required maxlength="500">
+                        <input type="text" id="reminderInput" placeholder="Digite um novo lembrete..." style="flex: 1; min-width: 250px;" required>
                         <button type="submit">Adicionar</button>
                     </form>
 
@@ -468,7 +422,7 @@
                         </div>
                         <button class="btn-danger" onclick="clearHistory()" style="white-space: nowrap;">Limpar Histórico</button>
                     </div>
-
+                    
                     <div class="table-responsive">
                     <table>
                         <thead>
@@ -492,21 +446,21 @@
                 <div class="card">
                     <h3 id="userFormTitle">Gerenciamento de Usuários</h3>
                     <p id="userFormSubtitle">Crie, edite ou remova credenciais de acesso para a equipe escolar.</p>
-
+                    
                     <form class="form-grid" id="userForm" onsubmit="handleCreateUser(event)" style="border-bottom: 1px solid var(--border-color); padding-bottom: 30px; margin-bottom: 30px;">
-                        <input type="hidden" id="editingUserId" value="">
-
+                        <input type="hidden" id="editingUserId" value=""> 
+                        
                         <div class="form-group">
                             <label>Nome do Funcionário</label>
-                            <input type="text" id="newUserName" required placeholder="Nome completo" maxlength="150" autocomplete="name">
+                            <input type="text" id="newUserName" required placeholder="Nome completo">
                         </div>
                         <div class="form-group">
                             <label>Nome de Usuário (Login)</label>
-                            <input type="text" id="newUserLogin" required placeholder="Ex: joao.silva" maxlength="100" autocomplete="username">
+                            <input type="text" id="newUserLogin" required placeholder="Ex: joao.silva">
                         </div>
                         <div class="form-group">
                             <label>Senha</label>
-                            <input type="password" id="newUserPass" required placeholder="Senha de acesso" maxlength="72" autocomplete="new-password">
+                            <input type="password" id="newUserPass" required placeholder="Senha de acesso">
                         </div>
                         <div class="form-group">
                             <label>Nível de Acesso</label>
@@ -515,7 +469,7 @@
                                 <option value="admin">Administrador</option>
                             </select>
                         </div>
-
+                        
                         <div class="form-group col-span-3" style="display: flex; gap: 15px; justify-content: flex-end;">
                             <button type="submit" id="btnSubmitUser" class="btn-print">Adicionar Novo Usuário</button>
                             <button type="button" id="btnCancelUserEdit" onclick="cancelUserEdit()" style="background-color: #64748b; display: none; color: #ffffff;">Cancelar Edição</button>
@@ -559,7 +513,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> 
 
     <!-- BANNER DE SUCESSO (grande e centralizado, bem mais visível que o toast de canto) -->
     <div id="successBanner" class="success-banner-overlay">
