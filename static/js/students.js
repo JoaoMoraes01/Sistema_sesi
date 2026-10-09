@@ -6,24 +6,10 @@ import { appState, API_URL, authHeaders, escapeHtml } from './state.js';
 import { showToast, showConfirm, showSuccessBanner } from './ui.js';
 import { switchTabDirect, switchTab, renderAll, handleAuthResponse } from './auth.js';
 
-// --- LISTAS FECHADAS ---
-const GRADE_OPTIONS = [
-    'Educação Infantil',
-    '1º Ano Fundamental', '2º Ano Fundamental', '3º Ano Fundamental',
-    '4º Ano Fundamental', '5º Ano Fundamental', '6º Ano Fundamental',
-    '7º Ano Fundamental', '8º Ano Fundamental', '9º Ano Fundamental',
-    '1º Ano Médio', '2º Ano Médio', '3º Ano Médio'
-];
-const CIVIL_OPTIONS = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Viúvo(a)', 'União Estável'];
-const RESP_OPTIONS = [
-    'Pai', 'Mãe', 'Avô/Avó', 'Tio(a)', 'Irmão(ã) maior',
-    'Tutor(a) legal', 'Guardião(ã) judicial'
-];
-
 function checkLaudo() {
     const laudoSelect = document.getElementById('studentLaudo');
     const laudoBox = document.getElementById('laudoBox');
-
+    
     if (laudoSelect && laudoBox) {
         if (laudoSelect.value === 'Sim') {
             laudoBox.style.display = 'grid';
@@ -39,28 +25,15 @@ function checkIrmao() {
     const qty = parseInt(document.getElementById('studentIrmaoQty')?.value) || 0;
     const container = document.getElementById('irmaoBox');
     if (!container) return;
-
+    
     container.innerHTML = '';
     if (qty > 0) {
         container.style.display = 'grid';
         for (let i = 1; i <= qty; i++) {
-            const opcoesSerie = GRADE_OPTIONS
-                .map((g) => `<option value="${g}">${g}</option>`)
-                .join('');
-
             container.innerHTML += `
-                <div class="irmao-row" style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <input type="text" id="irmaoNome${i}"
-                           placeholder="Nome do Irmão ${i}"
-                           required maxlength="200"
-                           pattern="[A-Za-zÀ-ÿ' \\-]+"
-                           title="Use apenas letras, espaços, hífen e apóstrofo."
-                           oninput="this.value = onlyLetters(this.value)"
-                           style="flex: 2; min-width: 200px;">
-                    <select id="irmaoSerie${i}" required style="flex: 1; min-width: 140px;">
-                        <option value="" disabled selected>Série/Ano</option>
-                        ${opcoesSerie}
-                    </select>
+                <div class="irmao-row" style="margin-top: 10px; display: flex; gap: 10px;">
+                    <input type="text" id="irmaoNome${i}" placeholder="Nome do Irmão ${i}" required style="flex: 2;">
+                    <input type="text" id="irmaoSerie${i}" placeholder="Série/Ano" required style="flex: 1;">
                 </div>
             `;
         }
@@ -69,9 +42,10 @@ function checkIrmao() {
     }
 }
 
-// --- FORMATAÇÃO AUTOMÁTICA (CPF/CNPJ/CEP/TELEFONE/RG) ---
+// --- FORMATAÇÃO AUTOMÁTICA (CPF/CNPJ) ---
 // Aplica a máscara enquanto a pessoa digita, sempre reconstruindo a partir
 // dos números "crus" (funciona bem mesmo colando o número de uma vez).
+// RG não tem uma máscara nacional fixa (varia por estado), por isso não é formatado.
 
 function formatCPF(value) {
     const digits = (value || '').replace(/\D/g, '').slice(0, 11);
@@ -97,6 +71,8 @@ function formatCEP(value) {
 }
 
 // Telefone: aceita fixo (00) 0000-0000 (10 dígitos) e celular (00) 00000-0000 (11 dígitos).
+// A formatação decide sozinha qual dos dois formatos usar, conforme a
+// quantidade de números já digitados.
 function formatTelefone(value) {
     const digits = (value || '').replace(/\D/g, '').slice(0, 11);
     if (digits.length <= 10) {
@@ -107,27 +83,6 @@ function formatTelefone(value) {
     return digits
         .replace(/(\d{2})(\d)/, '($1) $2')
         .replace(/(\d{5})(\d{1,4})$/, '$1-$2');
-}
-
-// RG no padrão SSP-SP: 00.000.000-0 (9 dígitos + máscara).
-// Se o estado usar outro padrão, ajuste a quantidade de dígitos no slice().
-function formatRG(value) {
-    const digits = (value || '').replace(/\D/g, '').slice(0, 9);
-    return digits
-        .replace(/(\d{2})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d{1})$/, '$1-$2');
-}
-
-// Remove tudo que não for letra (com acento), espaço, hífen ou apóstrofo.
-// Colapsa espaços duplos, tira espaço do começo e trava em 200 caracteres.
-// Usada via oninput="this.value = onlyLetters(this.value)" nos campos de nome.
-function onlyLetters(value) {
-    return (value || '')
-        .replace(/[^A-Za-zÀ-ÿ' \-]/g, '')
-        .replace(/\s{2,}/g, ' ')
-        .replace(/^\s+/, '')
-        .slice(0, 200);
 }
 
 // Confere se o CEP tem os 8 dígitos esperados (campo é opcional: vazio passa).
@@ -143,6 +98,10 @@ function validarTelefone(tel) {
 }
 
 // --- CAMPOS COM OPÇÃO "OUTRO" (Série, Estado Civil, Responsável Financeiro/Acadêmico) ---
+// Cada campo "baseId" (ex: "respFin") tem um select e, ao lado, um input
+// escondido chamado "baseId + Other" (ex: "respFinOther"), que só aparece
+// quando a pessoa escolhe "Outro".
+
 function toggleOtherField(baseId) {
     const select = document.getElementById(baseId);
     const otherInput = document.getElementById(baseId + 'Other');
@@ -165,17 +124,10 @@ function getFieldValue(baseId) {
 }
 
 // Preenche o campo na edição: se o valor salvo bate com uma opção da lista, seleciona ela;
-// se não bate com nenhuma (era um "Outro" antigo), seleciona "Outro" e mostra o texto salvo.
-// Se o valor for vazio, deixa o select no estado inicial (sem opção escolhida).
+// se não bate com nenhuma (era um "Outro" antigo), seleciona "Outro" e mostra o texto salvo
 function setFieldValue(baseId, value, knownOptions) {
     const select = document.getElementById(baseId);
     if (!select) return;
-
-    if (!value) {
-        select.value = '';
-        toggleOtherField(baseId);
-        return;
-    }
 
     if (knownOptions.includes(value)) {
         select.value = value;
@@ -188,10 +140,14 @@ function setFieldValue(baseId, value, knownOptions) {
     }
 }
 
+const GRADE_OPTIONS = ['Educação Infantil', '1º Ano Fundamental', '2º Ano Fundamental', '3º Ano Fundamental', '4º Ano Fundamental', '5º Ano Fundamental', '6º Ano Fundamental', '7º Ano Fundamental', '8º Ano Fundamental', '9º Ano Fundamental', '1º Ano Médio', '2º Ano Médio', '3º Ano Médio'];
+const CIVIL_OPTIONS = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Viúvo(a)', 'União Estável'];
+const RESP_OPTIONS = ['Pai', 'Mãe'];
+
 function validarCPF(cpf) {
     cpf = (cpf || '').replace(/\D/g, '');
     if (cpf.length !== 11) return false;
-    if (/^(\d)\1{10}$/.test(cpf)) return false; // ex: 111.111.111-11
+    if (/^(\d)\1{10}$/.test(cpf)) return false; // ex: 111.111.111-11 (inválido apesar de ter 11 dígitos)
 
     let soma = 0;
     for (let i = 0; i < 9; i++) soma += parseInt(cpf[i], 10) * (10 - i);
@@ -217,7 +173,7 @@ async function handleFormSubmit(event) {
         const serie = document.getElementById(`irmaoSerie${i}`)?.value;
         if (nome && serie) irmaos.push({ nome, serie });
     }
-
+    
     const payload = {
         category: document.getElementById('studentCategory')?.value,
         studentName: document.getElementById('studentName')?.value,
@@ -255,17 +211,28 @@ async function handleFormSubmit(event) {
         respAcad: getFieldValue('respAcad')
     };
 
-    // --- Validação agregada: acumula TODOS os erros em vez de parar no primeiro ---
-    const erros = [];
-    if (!validarCPF(payload.respCpf))                            erros.push('• CPF do responsável inválido');
-    if (payload.studentCpf && !validarCPF(payload.studentCpf))   erros.push('• CPF do aluno inválido');
-    if (!validarCEP(payload.respCep))                            erros.push('• CEP precisa ter 8 dígitos (00000-000)');
-    if (!validarTelefone(payload.telPai))                        erros.push('• Telefone do Pai precisa ter 10 ou 11 dígitos');
-    if (!validarTelefone(payload.telMae))                        erros.push('• Telefone da Mãe precisa ter 10 ou 11 dígitos');
-    if (!validarTelefone(payload.telOutro))                      erros.push('• Telefone do Outro responsável precisa ter 10 ou 11 dígitos');
-
-    if (erros.length) {
-        showToast(erros.join('\n'), 'error');
+    if (!validarCPF(payload.respCpf)) {
+        showToast('O CPF do responsável não é válido. Confira os números digitados.', 'error');
+        return;
+    }
+    if (payload.studentCpf && !validarCPF(payload.studentCpf)) {
+        showToast('O CPF do aluno não é válido. Confira os números digitados.', 'error');
+        return;
+    }
+    if (!validarCEP(payload.respCep)) {
+        showToast('O CEP precisa ter 8 dígitos (formato 00000-000).', 'error');
+        return;
+    }
+    if (!validarTelefone(payload.telPai)) {
+        showToast('O telefone do Pai precisa ter 10 ou 11 dígitos.', 'error');
+        return;
+    }
+    if (!validarTelefone(payload.telMae)) {
+        showToast('O telefone da Mãe precisa ter 10 ou 11 dígitos.', 'error');
+        return;
+    }
+    if (!validarTelefone(payload.telOutro)) {
+        showToast('O telefone do Outro responsável precisa ter 10 ou 11 dígitos.', 'error');
         return;
     }
 
@@ -285,13 +252,13 @@ async function handleFormSubmit(event) {
 
         if (response.ok) {
             const created = await response.json();
-            cancelEdit();
+            cancelEdit(); // limpa o formulário e restaura o estado de "novo cadastro"
 
             if (isEditing) {
                 showSuccessBanner('O cadastro foi atualizado com sucesso.', 'Cadastro atualizado!');
                 renderAll();
             } else {
-                await renderAll();
+                await renderAll(); // atualiza appState.allStudents para já sabermos a posição/situação da vaga
                 const registered = appState.allStudents.find((s) => s.id === created.id) || created;
                 showSuccessBanner(
                     `${registered.studentName} foi cadastrado(a) na posição ${registered.position ? registered.position + 'º lugar' : '(a definir)'}.\nSituação: ${registered.status_vaga || 'Em processamento'}.\n\nO comprovante para impressão fica disponível a qualquer momento em "Lista & Busca" ou "Vagas e Ocupação".`,
@@ -300,19 +267,10 @@ async function handleFormSubmit(event) {
                 );
             }
         } else if (response.status === 400) {
-            // Erro de regra de negócio (ex: CPF duplicado) — backend devolve "detail" como string
             const errorData = await response.json();
-            showToast(`Erro: ${errorData.detail}`, 'error');
-        } else if (response.status === 422) {
-            // Erro de validação do Pydantic — backend devolve "detail" como array
-            const errorData = await response.json();
-            const msgs = (errorData.detail || []).map((e) => {
-                const campo = e.loc && e.loc.length ? e.loc[e.loc.length - 1] : '?';
-                return `• ${campo}: ${e.msg}`;
-            }).join('\n');
-            showToast(msgs || 'Dados inválidos. Confira os campos.', 'error');
+            showToast(`Erro: ${errorData.detail}`, 'error'); // Exibe o erro do CPF duplicado
         } else {
-            showToast(`Erro ${response.status} ao salvar. Tente novamente.`, 'error');
+            showToast('Erro ao salvar no banco. Verifique os campos.', 'error');
         }
     } catch (error) {
         console.error('Erro:', error);
@@ -320,7 +278,8 @@ async function handleFormSubmit(event) {
     }
 }
 
-// --- RECIBO ---
+// --- BANNER DE SUCESSO (grande e centralizado, exibido após um novo cadastro) ---
+
 
 function showReceipt(student) {
     const body = document.getElementById('receiptBody');
@@ -369,11 +328,13 @@ async function renderVagas() {
     const totalVagas = document.getElementById('totalVagasInput')?.value || 5;
     try {
         const response = await fetch(`${API_URL}/students/queue?total_vagas=${totalVagas}`, { headers: authHeaders() });
-        if (!handleAuthResponse(response)) return;
+        if (!handleAuthResponse(response)) return; // token expirado/inválido: já desloga sozinho
         if (!response.ok) return;
 
         const sortedStudents = await response.json();
-        appState.allStudents = sortedStudents;
+        // Pré-calcula os campos de busca (nome sem acento, CPF só dígitos) UMA vez
+        // por aluno, em vez de refazer isso a cada tecla digitada na busca.
+        appState.allStudents = prepararIndiceBusca(sortedStudents);
 
         const tbody = document.getElementById('vagasTableBody');
         if (tbody) {
@@ -397,7 +358,9 @@ async function renderVagas() {
             }
         }
 
-        filterTable();
+        // Também atualiza a aba "Lista & Busca", respeitando o filtro/busca já digitados.
+        // `true` = aplica na hora, sem debounce (é atualização programática, não digitação).
+        filterTable(true);
     } catch (error) {
         console.error('Erro na fila:', error);
         showToast('Não foi possível carregar a fila de alunos.', 'error');
@@ -405,6 +368,88 @@ async function renderVagas() {
 }
 
 // --- LISTA & BUSCA DE ALUNOS ---
+
+// Normaliza texto para busca: remove acentos, coloca em minúsculas e
+// tira espaços das pontas. É isso que faz "joao" encontrar "João" e
+// "JOAO" também. Também resolve "silva " (com espaço) e "JOÃO".
+function normalizarBusca(value) {
+    return (value || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+// Mantém só os dígitos: usado para comparar CPF independente da formatação
+// ("111.111.111-11" == "11111111111").
+function apenasDigitos(value) {
+    return (value || '').replace(/\D/g, '');
+}
+
+// Pré-calcula, UMA única vez por aluno (quando a lista é carregada), os
+// campos já "prontos para busca". Sem isso, cada tecla digitada refazia
+// .normalize() e .replace() em todos os registros — com 500+ alunos, isso
+// travava visivelmente a digitação.
+function prepararIndiceBusca(students) {
+    students.forEach((s) => {
+        s._nomeBusca = normalizarBusca(s.studentName);
+        s._cpfBusca = apenasDigitos(s.studentCpf);
+    });
+    return students;
+}
+
+let _filtroTimer = null;
+
+// Debounce: só filtra de verdade depois que o usuário parar de digitar por
+// ~180ms. Sem isso, "João" dispara 4 buscas completas em menos de meio
+// segundo, re-renderizando a tabela inteira 4 vezes.
+// `immediate = true` fica disponível para chamadas programáticas (ex: depois
+// de carregar a fila) que precisam do resultado na hora.
+function filterTable(immediate = false) {
+    clearTimeout(_filtroTimer);
+    if (immediate) {
+        aplicarFiltro();
+    } else {
+        _filtroTimer = setTimeout(aplicarFiltro, 180);
+    }
+}
+
+function aplicarFiltro() {
+    const term = (document.getElementById('searchInput')?.value || '').trim();
+    const category = document.getElementById('filterCategory')?.value || 'all';
+
+    // Se o termo só contém dígitos/pontos/traços/espaços, é busca por CPF.
+    // Se contém qualquer letra, é busca por nome — assim nunca comparamos
+    // laranja com banana e o resultado fica previsível.
+    const buscandoPorCpf = term.length > 0 && /^[\d.\-\s]+$/.test(term);
+    const termNorm = normalizarBusca(term);
+    const termDigits = apenasDigitos(term);
+
+    const filtered = appState.allStudents.filter((s) => {
+        if (category !== 'all' && s.category !== category) return false;
+        if (!term) return true;
+
+        if (buscandoPorCpf) {
+            return termDigits.length > 0 && s._cpfBusca.includes(termDigits);
+        }
+        return s._nomeBusca.includes(termNorm);
+    });
+
+    renderStudentsList(filtered);
+
+    // Contador de resultados: dá feedback imediato de que o filtro rodou.
+    const counter = document.getElementById('searchResultCount');
+    if (counter) {
+        if (!term && category === 'all') {
+            counter.textContent = '';
+            counter.style.display = 'none';
+        } else {
+            counter.textContent = `${filtered.length} resultado(s) encontrado(s)`;
+            counter.style.display = 'block';
+        }
+    }
+}
 
 function renderStudentsList(students) {
     const tbody = document.getElementById('studentTableBody');
@@ -433,22 +478,7 @@ function renderStudentsList(students) {
     `).join('');
 }
 
-function filterTable() {
-    const term = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
-    const category = document.getElementById('filterCategory')?.value || 'all';
-
-    const filtered = appState.allStudents.filter((s) => {
-        const matchesTerm = !term ||
-            (s.studentName || '').toLowerCase().includes(term) ||
-            (s.studentCpf || '').toLowerCase().includes(term);
-        const matchesCategory = category === 'all' || s.category === category;
-        return matchesTerm && matchesCategory;
-    });
-
-    renderStudentsList(filtered);
-}
-
-// Preenche o formulário de cadastro com os dados do aluno para edição
+// Preenche o formulário de cadastro com os dados do aluno para edição (reaproveita o mesmo form)
 function editStudent(id) {
     const student = appState.allStudents.find((s) => s.id === id);
     if (!student) {
@@ -511,6 +541,7 @@ function editStudent(id) {
     const btnCancel = document.getElementById('btnCancelEdit');
     if (btnCancel) btnCancel.style.display = 'inline-block';
 
+    // Lembra de onde o usuário veio, para que "Cancelar" volte para lá em vez de ficar no cadastro
     appState.editOriginTab = document.querySelector('.tab-content.active')?.id || null;
 
     switchTabDirect('tab-cadastro');
@@ -531,6 +562,7 @@ function cancelEdit() {
     checkIrmao();
     ['studentGrade', 'respCivil', 'respFin', 'respAcad'].forEach(toggleOtherField);
 
+    // Volta para a aba em que o usuário estava antes de iniciar a edição (ex: Lista & Busca)
     if (appState.editOriginTab && appState.editOriginTab !== 'tab-cadastro') {
         switchTab(null, appState.editOriginTab);
     }
@@ -544,7 +576,7 @@ async function deleteStudent(id) {
 
     try {
         const response = await fetch(`${API_URL}/students/${id}`, { method: 'DELETE', headers: authHeaders() });
-        if (!handleAuthResponse(response)) return;
+        if (!handleAuthResponse(response)) return; // token expirado/inválido: já desloga sozinho
         if (response.ok) {
             showSuccessBanner('O cadastro foi removido com sucesso.', 'Cadastro removido!');
             renderAll();
@@ -558,9 +590,11 @@ async function deleteStudent(id) {
     }
 }
 
+
 export {
     checkLaudo, checkIrmao, validarCPF, handleFormSubmit,
     showReceipt, closeReceipt, showReceiptById,
     renderVagas, renderStudentsList, filterTable, editStudent, cancelEdit, deleteStudent,
-    formatCPF, formatCNPJ, formatCEP, formatTelefone, formatRG, onlyLetters, toggleOtherField,
+    formatCPF, formatCNPJ, formatCEP, formatTelefone, toggleOtherField,
+    normalizarBusca,
 };
