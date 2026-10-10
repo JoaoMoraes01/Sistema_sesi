@@ -373,7 +373,9 @@ async function renderVagas() {
         if (!response.ok) return;
 
         const sortedStudents = await response.json();
-        appState.allStudents = sortedStudents;
+        // Pré-calcula os campos de busca (nome sem acento, CPF só dígitos) UMA vez
+        // por aluno, em vez de refazer isso a cada tecla digitada na busca.
+        appState.allStudents = prepararIndiceBusca(sortedStudents);
 
         const tbody = document.getElementById('vagasTableBody');
         if (tbody) {
@@ -397,7 +399,9 @@ async function renderVagas() {
             }
         }
 
-        filterTable();
+        // Também atualiza a aba "Lista & Busca", respeitando o filtro/busca já digitados.
+        //  = aplica na hora, sem debounce (é atualização programática, não digitação).
+        filterTable(true);
     } catch (error) {
         console.error('Erro na fila:', error);
         showToast('Não foi possível carregar a fila de alunos.', 'error');
@@ -433,19 +437,86 @@ function renderStudentsList(students) {
     `).join('');
 }
 
-function filterTable() {
-    const term = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+// Normaliza texto para busca: remove acentos, coloca em minúsculas e
+// tira espaços das pontas. É isso que faz "joao" encontrar "João" e
+// "JOAO" também. Também resolve "silva " (com espaço) e "JOÃO".
+function normalizarBusca(value) {
+    return (value || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+// Mantém só os dígitos: usado para comparar CPF independente da formatação
+// ("111.111.111-11" == "11111111111").
+function apenasDigitos(value) {
+    return (value || '').replace(/\D/g, '');
+}
+
+// Pré-calcula, UMA única vez por aluno (quando a lista é carregada), os
+// campos já "prontos para busca". Sem isso, cada tecla digitada refazia
+// .normalize() e .replace() em todos os registros — com 500+ alunos, isso
+// travava visivelmente a digitação.
+function prepararIndiceBusca(students) {
+    students.forEach((s) => {
+        s._nomeBusca = normalizarBusca(s.studentName);
+        s._cpfBusca = apenasDigitos(s.studentCpf);
+    });
+    return students;
+}
+
+let _filtroTimer = null;
+
+// Debounce: só filtra de verdade depois que o usuário parar de digitar por
+// ~180ms. Sem isso, "João" dispara 4 buscas completas em menos de meio
+// segundo, re-renderizando a tabela inteira 4 vezes.
+// `immediate = true` fica disponível para chamadas programáticas (ex: depois
+// de carregar a fila) que precisam do resultado na hora.
+function filterTable(immediate = false) {
+    clearTimeout(_filtroTimer);
+    if (immediate) {
+        aplicarFiltro();
+    } else {
+        _filtroTimer = setTimeout(aplicarFiltro, 180);
+    }
+}
+
+function aplicarFiltro() {
+    const term = (document.getElementById('searchInput')?.value || '').trim();
     const category = document.getElementById('filterCategory')?.value || 'all';
 
+    // Se o termo só contém dígitos/pontos/traços/espaços, é busca por CPF.
+    // Se contém qualquer letra, é busca por nome — assim nunca comparamos
+    // laranja com banana e o resultado fica previsível.
+    const buscandoPorCpf = term.length > 0 && /^[\d.\-\s]+$/.test(term);
+    const termNorm = normalizarBusca(term);
+    const termDigits = apenasDigitos(term);
+
     const filtered = appState.allStudents.filter((s) => {
-        const matchesTerm = !term ||
-            (s.studentName || '').toLowerCase().includes(term) ||
-            (s.studentCpf || '').toLowerCase().includes(term);
-        const matchesCategory = category === 'all' || s.category === category;
-        return matchesTerm && matchesCategory;
+        if (category !== 'all' && s.category !== category) return false;
+        if (!term) return true;
+
+        if (buscandoPorCpf) {
+            return termDigits.length > 0 && s._cpfBusca.includes(termDigits);
+        }
+        return s._nomeBusca.includes(termNorm);
     });
 
     renderStudentsList(filtered);
+
+    // Contador de resultados: dá feedback imediato de que o filtro rodou.
+    const counter = document.getElementById('searchResultCount');
+    if (counter) {
+        if (!term && category === 'all') {
+            counter.textContent = '';
+            counter.style.display = 'none';
+        } else {
+            counter.textContent = `${filtered.length} resultado(s) encontrado(s)`;
+            counter.style.display = 'block';
+        }
+    }
 }
 
 // Preenche o formulário de cadastro com os dados do aluno para edição
@@ -563,4 +634,5 @@ export {
     showReceipt, closeReceipt, showReceiptById,
     renderVagas, renderStudentsList, filterTable, editStudent, cancelEdit, deleteStudent,
     formatCPF, formatCNPJ, formatCEP, formatTelefone, formatRG, onlyLetters, toggleOtherField,
+    normalizarBusca,
 };

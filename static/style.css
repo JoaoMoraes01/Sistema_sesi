@@ -263,6 +263,14 @@ input:focus, select:focus { outline: none; border-color: var(--primary-color); }
 .actions-bar { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
 .actions-bar input, .actions-bar select { flex: 1; min-width: 250px; }
 
+/* Contador de resultados da busca (feedback visual de quantos cadastros bateram com o filtro) */
+.search-result-count {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: -10px 0 15px 0;
+}
+
 /* --- TABELAS --- */
 .table-responsive {
     width: 100%;
