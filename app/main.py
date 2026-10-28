@@ -7,6 +7,7 @@ app, middlewares, inclusão dos routers e o "encaixe" do front-end estático.
 """
 import socket
 import webbrowser
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -63,7 +64,12 @@ async def lifespan(app: FastAPI):
         print("  Não foi possível detectar o IP da rede local.")
     print("=" * 55 + "\n")
 
-    webbrowser.open("http://127.0.0.1:8000/")
+    # Em serviços cloud não há navegador na máquina do servidor. Mantém o
+    # comportamento local e permite desativá-lo explicitamente com OPEN_BROWSER=false.
+    open_browser_default = "false" if os.getenv("PORT") else "true"
+    if os.getenv("OPEN_BROWSER", open_browser_default).lower() in {"1", "true", "yes"}:
+        port = os.getenv("PORT", "8000")
+        webbrowser.open(f"http://127.0.0.1:{port}/")
     yield
 
 app = FastAPI(title="API Gestão Escolar SESI", version="1.0.0", lifespan=lifespan)
@@ -102,4 +108,9 @@ app.include_router(reminders.router)
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "8000")),
+        reload=not bool(os.getenv("PORT")),
+    )
