@@ -1,0 +1,43 @@
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass_local}
+      MYSQL_DATABASE: ${MYSQL_DB:-sesi_gestao}
+      MYSQL_USER: ${MYSQL_USER:-sesi_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-sesi_pass_local}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    restart: unless-stopped
+
+  app:
+    build: .
+    image: sistema-sesi:latest
+    ports:
+      - "8000:8000"
+    environment:
+      # Banco — aponta para o serviço "db" na rede interna do compose
+      MYSQL_USER: ${MYSQL_USER:-sesi_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-sesi_pass_local}
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_DB: ${MYSQL_DB:-sesi_gestao}
+      MYSQL_SSL: "false"
+
+      # Segurança — gere com: python -c "import secrets; print(secrets.token_hex(32))"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?defina JWT_SECRET_KEY no .env}
+      JWT_EXPIRE_MINUTES: "480"
+      ADMIN_DEFAULT_PASSWORD: ${ADMIN_DEFAULT_PASSWORD:?defina ADMIN_DEFAULT_PASSWORD no .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
