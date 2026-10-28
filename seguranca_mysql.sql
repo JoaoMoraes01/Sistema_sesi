@@ -9,17 +9,17 @@
 -- COMO USAR:
 --   1. Abra o terminal como administrador
 --   2. mysql -u root -p   (digite a senha atual do root)
---   3. Cole os comandos abaixo, TROCANDO a senha antes:
+--   3. Cole os comandos abaixo, trocando o marcador por uma senha forte:
 --      (ou rode de uma vez:  mysql -u root -p < seguranca_mysql.sql)
 --   4. Atualize o arquivo .env: MYSQL_USER=sesi_app e a senha nova
 --   5. Reinicie o sistema e confirme que o login e os cadastros funcionam
 --
--- IMPORTANTE: troque 'TROQUE_ESTA_SENHA' por uma senha forte de verdade
+-- IMPORTANTE: substitua o marcador abaixo por uma senha forte e exclusiva
 -- (12+ caracteres, misturando letras, números e símbolos).
 -- =====================================================================
 
 CREATE USER IF NOT EXISTS 'sesi_app'@'localhost'
-    IDENTIFIED BY 'sesiapp123456';
+    IDENTIFIED BY 'TROQUE_POR_UMA_SENHA_FORTE';
 
 -- Permissões mínimas necessárias: ler, inserir, editar e apagar registros
 -- APENAS no banco do sistema. Sem DROP, sem CREATE USER, sem acesso a
