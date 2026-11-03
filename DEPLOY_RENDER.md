@@ -36,3 +36,5 @@ $env:MYSQL_DB="defaultdb"
 $env:MYSQL_SSL="true"
 $env:MYSQL_SSL_CA="C:\certs\aiven-ca.pem"
 python -m app.seed_teste --quantidade 300
+
+python -c "from app.database import engine; c = engine.connect(); print('Conectado'); c.close()"
