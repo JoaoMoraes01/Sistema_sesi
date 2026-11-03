@@ -26,3 +26,13 @@ Esta configuração mantém o backend FastAPI, o frontend estático e o MySQL. F
 - O plano MySQL gratuito da Aiven tem limites de recursos, pode desligar após inatividade e não é recomendado para tráfego ou uso operacional elevado. Confira limites e termos atuais nos painéis dos fornecedores.
 - Faça cópias de segurança do banco e confirme que consegue restaurá-las. Não trate uma conta gratuita de demonstração como armazenamento permanente.
 - O repositório README lista pendências de segurança ainda não resolvidas. Portanto, não use o sistema para gerir matrículas reais ou dados pessoais/sensíveis sem revisão de segurança e autorização institucional.
+
+
+$env:MYSQL_HOST="SEU-HOST.aivencloud.com"
+$env:MYSQL_PORT="PORTA"
+$env:MYSQL_USER="avnadmin"
+$env:MYSQL_PASSWORD="SUA_SENHA"
+$env:MYSQL_DB="defaultdb"
+$env:MYSQL_SSL="true"
+$env:MYSQL_SSL_CA="C:\certs\aiven-ca.pem"
+python -m app.seed_teste --quantidade 300
