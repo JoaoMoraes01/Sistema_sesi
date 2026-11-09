@@ -1,7 +1,7 @@
 """
 Ponto de entrada da aplicação.
 
-As rotas em si moraram para app/routes/ (um arquivo por assunto: alunos,
+As rotas em si moram em app/routes/ (um arquivo por assunto: alunos,
 usuários, histórico, lembretes, autenticação). Aqui só ficam: criação do
 app, middlewares, inclusão dos routers e o "encaixe" do front-end estático.
 """
@@ -18,19 +18,16 @@ from fastapi.staticfiles import StaticFiles
 
 from app.database import engine, Base, SessionLocal
 from app.crud import create_default_user
+from app.migrations import run_migrations
 from app.routes import auth, students, users, history, reminders
 
-# Pasta do front-end (index.html, script.js, style.css, sesi.png), servida pelo próprio FastAPI
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "static"
-
 
 def get_local_ip() -> str | None:
     """
     Descobre o IP desta máquina na rede local (ex: 192.168.x.x), sem precisar
-    abrir o ipconfig/ifconfig manualmente. Não faz nenhuma conexão de verdade
-    (o socket UDP nunca chega a enviar nada) — é só um truque para perguntar
-    ao sistema operacional "qual seria minha saída pra internet".
+    abrir o ipconfig/ifconfig manualmente.
     """
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -39,14 +36,13 @@ def get_local_ip() -> str | None:
     except OSError:
         return None
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Criar tabelas automaticamente no MySQL (só cria as que faltam, não altera as existentes).
-    # Fica aqui dentro (e não solto no topo do arquivo) para que só aconteça quando o
-    # servidor realmente sobe — importar este módulo (como os testes automatizados fazem)
-    # não deve, por si só, tentar abrir uma conexão com o banco de dados.
+    # 1) Cria tabelas novas (só as que faltam).
     Base.metadata.create_all(bind=engine)
+    # 2) Aplica colunas/índices novos em tabelas que já existem (ex: category_priority,
+    #    student_cpf_digits) e faz o backfill. Idempotente — roda em toda subida.
+    run_migrations(engine)
 
     db = SessionLocal()
     try:
@@ -64,8 +60,6 @@ async def lifespan(app: FastAPI):
         print("  Não foi possível detectar o IP da rede local.")
     print("=" * 55 + "\n")
 
-    # Em serviços cloud não há navegador na máquina do servidor. Mantém o
-    # comportamento local e permite desativá-lo explicitamente com OPEN_BROWSER=false.
     open_browser_default = "false" if os.getenv("PORT") else "true"
     if os.getenv("OPEN_BROWSER", open_browser_default).lower() in {"1", "true", "yes"}:
         port = os.getenv("PORT", "8000")
@@ -76,12 +70,6 @@ app = FastAPI(title="API Gestão Escolar SESI", version="1.0.0", lifespan=lifesp
 
 app.add_middleware(
     CORSMiddleware,
-    # O sistema não usa cookies (login é via token no header Authorization),
-    # então não precisamos de allow_credentials nem de liberar geral com "*".
-    # Restringimos a origens conhecidas: localhost (uso na própria máquina)
-    # e qualquer rede local privada (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
-    # acessando pela porta 8000 — cobre rede da escola, roteador de casa
-    # ou hotspot de celular (Android e iPhone usam faixas diferentes entre si).
     allow_origins=[
         "http://localhost:8000",
         "http://127.0.0.1:8000",
@@ -92,7 +80,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-# --- ROTAS DA API (cada router cuida de um assunto — veja app/routes/) ---
+# --- ROTAS DA API ---
 app.include_router(auth.router)
 app.include_router(students.router)
 app.include_router(users.router)
@@ -100,11 +88,6 @@ app.include_router(history.router)
 app.include_router(reminders.router)
 
 # --- FRONT-END ---
-# Serve index.html, script.js, style.css e sesi.png direto pelo FastAPI.
-# Precisa ser a ÚLTIMA coisa registrada no app: assim as rotas /api acima
-# continuam funcionando normalmente, e tudo que não é /api cai aqui,
-# devolvendo o index.html (html=True). É isso que permite abrir o sistema
-# inteiro com um único comando, sem precisar de um Live Server separado.
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 if __name__ == "__main__":
