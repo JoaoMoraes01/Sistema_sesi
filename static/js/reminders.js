@@ -1,9 +1,9 @@
 /*
  * Lembretes: anotações pessoais do usuário logado (cada um só vê os seus).
  */
-import { appState, API_URL, authHeaders, escapeHtml } from './state.js';
-import { showToast, showConfirm, showSuccessBanner } from './ui.js';
-import { handleAuthResponse } from './auth.js';
+import { appState, API_URL, authHeaders, escapeHtml } from './state.js?v=14';
+import { showToast, showConfirm, showSuccessBanner } from './ui.js?v=14';
+import { handleAuthResponse } from './auth.js?v=14';
 
 async function renderReminders() {
     try {
