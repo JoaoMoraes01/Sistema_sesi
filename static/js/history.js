@@ -1,9 +1,9 @@
 /*
  * Histórico de atividades (Painel Admin): consultar e limpar o log de auditoria.
  */
-import { API_URL, authHeaders, escapeHtml } from './state.js';
-import { showToast, showConfirm, showSuccessBanner } from './ui.js';
-import { handleAuthResponse } from './auth.js';
+import { API_URL, authHeaders, escapeHtml } from './state.js?v=14';
+import { showToast, showConfirm, showSuccessBanner } from './ui.js?v=14';
+import { handleAuthResponse } from './auth.js?v=14';
 
 async function renderHistory() {
     try {
