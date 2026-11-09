@@ -4,7 +4,7 @@
  */
 import { appState, API_URL, authHeaders, escapeHtml } from './state.js';
 import { showToast, showConfirm, showSuccessBanner } from './ui.js';
-import { switchTabDirect, switchTab, renderAll, handleAuthResponse } from './auth.js';
+import { switchTabDirect, switchTab, handleAuthResponse } from './auth.js';
 
 // --- LISTAS FECHADAS ---
 const GRADE_OPTIONS = [
@@ -70,8 +70,6 @@ function checkIrmao() {
 }
 
 // --- FORMATAÇÃO AUTOMÁTICA (CPF/CNPJ/CEP/TELEFONE/RG) ---
-// Aplica a máscara enquanto a pessoa digita, sempre reconstruindo a partir
-// dos números "crus" (funciona bem mesmo colando o número de uma vez).
 
 function formatCPF(value) {
     const digits = (value || '').replace(/\D/g, '').slice(0, 11);
@@ -90,13 +88,11 @@ function formatCNPJ(value) {
         .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
 }
 
-// CEP: 00000-000 (8 dígitos)
 function formatCEP(value) {
     const digits = (value || '').replace(/\D/g, '').slice(0, 8);
     return digits.replace(/(\d{5})(\d)/, '$1-$2');
 }
 
-// Telefone: aceita fixo (00) 0000-0000 (10 dígitos) e celular (00) 00000-0000 (11 dígitos).
 function formatTelefone(value) {
     const digits = (value || '').replace(/\D/g, '').slice(0, 11);
     if (digits.length <= 10) {
@@ -109,8 +105,6 @@ function formatTelefone(value) {
         .replace(/(\d{5})(\d{1,4})$/, '$1-$2');
 }
 
-// RG no padrão SSP-SP: 00.000.000-0 (9 dígitos + máscara).
-// Se o estado usar outro padrão, ajuste a quantidade de dígitos no slice().
 function formatRG(value) {
     const digits = (value || '').replace(/\D/g, '').slice(0, 9);
     return digits
@@ -119,9 +113,6 @@ function formatRG(value) {
         .replace(/(\d{3})(\d{1})$/, '$1-$2');
 }
 
-// Remove tudo que não for letra (com acento), espaço, hífen ou apóstrofo.
-// Colapsa espaços duplos, tira espaço do começo e trava em 200 caracteres.
-// Usada via oninput="this.value = onlyLetters(this.value)" nos campos de nome.
 function onlyLetters(value) {
     return (value || '')
         .replace(/[^A-Za-zÀ-ÿ' \-]/g, '')
@@ -130,19 +121,16 @@ function onlyLetters(value) {
         .slice(0, 200);
 }
 
-// Confere se o CEP tem os 8 dígitos esperados (campo é opcional: vazio passa).
 function validarCEP(cep) {
     const digits = (cep || '').replace(/\D/g, '');
     return digits.length === 0 || digits.length === 8;
 }
 
-// Confere se o telefone tem 10 (fixo) ou 11 (celular) dígitos (campo é opcional: vazio passa).
 function validarTelefone(tel) {
     const digits = (tel || '').replace(/\D/g, '');
     return digits.length === 0 || digits.length === 10 || digits.length === 11;
 }
 
-// --- CAMPOS COM OPÇÃO "OUTRO" (Série, Estado Civil, Responsável Financeiro/Acadêmico) ---
 function toggleOtherField(baseId) {
     const select = document.getElementById(baseId);
     const otherInput = document.getElementById(baseId + 'Other');
@@ -154,7 +142,6 @@ function toggleOtherField(baseId) {
     if (!isOther) otherInput.value = '';
 }
 
-// Lê o valor "de verdade" do campo: se for "Outro", pega o texto digitado no campo extra
 function getFieldValue(baseId) {
     const select = document.getElementById(baseId);
     if (!select) return '';
@@ -164,9 +151,6 @@ function getFieldValue(baseId) {
     return select.value;
 }
 
-// Preenche o campo na edição: se o valor salvo bate com uma opção da lista, seleciona ela;
-// se não bate com nenhuma (era um "Outro" antigo), seleciona "Outro" e mostra o texto salvo.
-// Se o valor for vazio, deixa o select no estado inicial (sem opção escolhida).
 function setFieldValue(baseId, value, knownOptions) {
     const select = document.getElementById(baseId);
     if (!select) return;
@@ -191,7 +175,7 @@ function setFieldValue(baseId, value, knownOptions) {
 function validarCPF(cpf) {
     cpf = (cpf || '').replace(/\D/g, '');
     if (cpf.length !== 11) return false;
-    if (/^(\d)\1{10}$/.test(cpf)) return false; // ex: 111.111.111-11
+    if (/^(\d)\1{10}$/.test(cpf)) return false;
 
     let soma = 0;
     for (let i = 0; i < 9; i++) soma += parseInt(cpf[i], 10) * (10 - i);
@@ -255,7 +239,6 @@ async function handleFormSubmit(event) {
         respAcad: getFieldValue('respAcad')
     };
 
-    // --- Validação agregada: acumula TODOS os erros em vez de parar no primeiro ---
     const erros = [];
     if (!validarCPF(payload.respCpf))                            erros.push('• CPF do responsável inválido');
     if (payload.studentCpf && !validarCPF(payload.studentCpf))   erros.push('• CPF do aluno inválido');
@@ -281,7 +264,7 @@ async function handleFormSubmit(event) {
             body: JSON.stringify(payload)
         });
 
-        if (!handleAuthResponse(response)) return; // token expirado/inválido: já desloga sozinho
+        if (!handleAuthResponse(response)) return;
 
         if (response.ok) {
             const created = await response.json();
@@ -289,9 +272,12 @@ async function handleFormSubmit(event) {
 
             if (isEditing) {
                 showSuccessBanner('O cadastro foi atualizado com sucesso.', 'Cadastro atualizado!');
-                renderAll();
+                // Só a fila mudou — não faz sentido recarregar histórico/usuários.
+                renderVagas();
             } else {
-                await renderAll();
+                // `await` para garantir appState.allStudents já atualizado
+                // antes de buscar a posição do aluno recém-criado no banner.
+                await renderVagas();
                 const registered = appState.allStudents.find((s) => s.id === created.id) || created;
                 showSuccessBanner(
                     `${registered.studentName} foi cadastrado(a) na posição ${registered.position ? registered.position + 'º lugar' : '(a definir)'}.\nSituação: ${registered.status_vaga || 'Em processamento'}.\n\nO comprovante para impressão fica disponível a qualquer momento em "Lista & Busca" ou "Vagas e Ocupação".`,
@@ -300,11 +286,9 @@ async function handleFormSubmit(event) {
                 );
             }
         } else if (response.status === 400) {
-            // Erro de regra de negócio (ex: CPF duplicado) — backend devolve "detail" como string
             const errorData = await response.json();
             showToast(`Erro: ${errorData.detail}`, 'error');
         } else if (response.status === 422) {
-            // Erro de validação do Pydantic — backend devolve "detail" como array
             const errorData = await response.json();
             const msgs = (errorData.detail || []).map((e) => {
                 const campo = e.loc && e.loc.length ? e.loc[e.loc.length - 1] : '?';
@@ -365,6 +349,15 @@ function showReceiptById(id) {
     showReceipt(student);
 }
 
+// --- VAGAS E FILA ---
+
+/**
+ * Busca a fila do servidor e atualiza o cache. Depois:
+ * - Renderiza a tabela de vagas SEMPRE (mesmo se invisível, pra estar pronta
+ *   quando o usuário trocar de aba)
+ * - Re-renderiza a tabela da Lista & Busca SOMENTE se aquela aba estiver ativa
+ *   (antes rodava incondicionalmente, dobrando o trabalho de DOM)
+ */
 async function renderVagas() {
     const totalVagas = document.getElementById('totalVagasInput')?.value || 5;
     try {
@@ -373,39 +366,49 @@ async function renderVagas() {
         if (!response.ok) return;
 
         const sortedStudents = await response.json();
-        // Pré-calcula os campos de busca (nome sem acento, CPF só dígitos) UMA vez
-        // por aluno, em vez de refazer isso a cada tecla digitada na busca.
         appState.allStudents = prepararIndiceBusca(sortedStudents);
 
-        const tbody = document.getElementById('vagasTableBody');
-        if (tbody) {
-            if (sortedStudents.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum aluno cadastrado.</td></tr>';
-            } else {
-                tbody.innerHTML = sortedStudents.map((s) => `
-                    <tr>
-                        <td><strong>${s.position}º</strong></td>
-                        <td>${escapeHtml(s.timestamp)}</td>
-                        <td>${escapeHtml(s.studentName)}</td>
-                        <td>${escapeHtml(s.category)}</td>
-                        <td><span class="status-vaga ${s.status_vaga === 'VAGA GARANTIDA' ? 'alocado' : 'espera'}">${escapeHtml(s.status_vaga)}</span></td>
-                        <td>
-                            <div class="table-actions">
-                                <button class="btn-print" style="padding: 6px 12px; font-size: 0.85rem;" onclick="showReceiptById(${s.id})">Recibo</button>
-                            </div>
-                        </td>
-                    </tr>
-                `).join('');
-            }
-        }
+        renderVagasTableOnly();
 
-        // Também atualiza a aba "Lista & Busca", respeitando o filtro/busca já digitados.
-        //  = aplica na hora, sem debounce (é atualização programática, não digitação).
-        filterTable(true);
+        // Só re-renderiza a lista se o usuário estiver olhando para ela
+        if (document.getElementById('tab-lista')?.classList.contains('active')) {
+            filterTable(true);
+        }
     } catch (error) {
         console.error('Erro na fila:', error);
         showToast('Não foi possível carregar a fila de alunos.', 'error');
     }
+}
+
+/**
+ * Renderiza a tabela de "Vagas e Ocupação" a partir do cache `appState.allStudents`.
+ * Não faz fetch. Usado ao trocar de aba (dados já carregados no login/CRUD).
+ */
+function renderVagasTableOnly() {
+    const tbody = document.getElementById('vagasTableBody');
+    if (!tbody) return;
+
+    const sortedStudents = appState.allStudents;
+
+    if (sortedStudents.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum aluno cadastrado.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = sortedStudents.map((s) => `
+        <tr>
+            <td><strong>${s.position}º</strong></td>
+            <td>${escapeHtml(s.timestamp)}</td>
+            <td>${escapeHtml(s.studentName)}</td>
+            <td>${escapeHtml(s.category)}</td>
+            <td><span class="status-vaga ${s.status_vaga === 'VAGA GARANTIDA' ? 'alocado' : 'espera'}">${escapeHtml(s.status_vaga)}</span></td>
+            <td>
+                <div class="table-actions">
+                    <button class="btn-print" style="padding: 6px 12px; font-size: 0.85rem;" onclick="showReceiptById(${s.id})">Recibo</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
 }
 
 // --- LISTA & BUSCA DE ALUNOS ---
@@ -437,9 +440,6 @@ function renderStudentsList(students) {
     `).join('');
 }
 
-// Normaliza texto para busca: remove acentos, coloca em minúsculas e
-// tira espaços das pontas. É isso que faz "joao" encontrar "João" e
-// "JOAO" também. Também resolve "silva " (com espaço) e "JOÃO".
 function normalizarBusca(value) {
     return (value || '')
         .toString()
@@ -449,16 +449,10 @@ function normalizarBusca(value) {
         .trim();
 }
 
-// Mantém só os dígitos: usado para comparar CPF independente da formatação
-// ("111.111.111-11" == "11111111111").
 function apenasDigitos(value) {
     return (value || '').replace(/\D/g, '');
 }
 
-// Pré-calcula, UMA única vez por aluno (quando a lista é carregada), os
-// campos já "prontos para busca". Sem isso, cada tecla digitada refazia
-// .normalize() e .replace() em todos os registros — com 500+ alunos, isso
-// travava visivelmente a digitação.
 function prepararIndiceBusca(students) {
     students.forEach((s) => {
         s._nomeBusca = normalizarBusca(s.studentName);
@@ -469,11 +463,6 @@ function prepararIndiceBusca(students) {
 
 let _filtroTimer = null;
 
-// Debounce: só filtra de verdade depois que o usuário parar de digitar por
-// ~180ms. Sem isso, "João" dispara 4 buscas completas em menos de meio
-// segundo, re-renderizando a tabela inteira 4 vezes.
-// `immediate = true` fica disponível para chamadas programáticas (ex: depois
-// de carregar a fila) que precisam do resultado na hora.
 function filterTable(immediate = false) {
     clearTimeout(_filtroTimer);
     if (immediate) {
@@ -487,9 +476,6 @@ function aplicarFiltro() {
     const term = (document.getElementById('searchInput')?.value || '').trim();
     const category = document.getElementById('filterCategory')?.value || 'all';
 
-    // Se o termo só contém dígitos/pontos/traços/espaços, é busca por CPF.
-    // Se contém qualquer letra, é busca por nome — assim nunca comparamos
-    // laranja com banana e o resultado fica previsível.
     const buscandoPorCpf = term.length > 0 && /^[\d.\-\s]+$/.test(term);
     const termNorm = normalizarBusca(term);
     const termDigits = apenasDigitos(term);
@@ -506,7 +492,6 @@ function aplicarFiltro() {
 
     renderStudentsList(filtered);
 
-    // Contador de resultados: dá feedback imediato de que o filtro rodou.
     const counter = document.getElementById('searchResultCount');
     if (counter) {
         if (!term && category === 'all') {
@@ -519,7 +504,6 @@ function aplicarFiltro() {
     }
 }
 
-// Preenche o formulário de cadastro com os dados do aluno para edição
 function editStudent(id) {
     const student = appState.allStudents.find((s) => s.id === id);
     if (!student) {
@@ -618,7 +602,7 @@ async function deleteStudent(id) {
         if (!handleAuthResponse(response)) return;
         if (response.ok) {
             showSuccessBanner('O cadastro foi removido com sucesso.', 'Cadastro removido!');
-            renderAll();
+            renderVagas();
         } else {
             const err = await response.json();
             showToast(`Erro: ${err.detail}`, 'error');
@@ -632,7 +616,8 @@ async function deleteStudent(id) {
 export {
     checkLaudo, checkIrmao, validarCPF, handleFormSubmit,
     showReceipt, closeReceipt, showReceiptById,
-    renderVagas, renderStudentsList, filterTable, editStudent, cancelEdit, deleteStudent,
+    renderVagas, renderVagasTableOnly, renderStudentsList, filterTable,
+    editStudent, cancelEdit, deleteStudent,
     formatCPF, formatCNPJ, formatCEP, formatTelefone, formatRG, onlyLetters, toggleOtherField,
     normalizarBusca,
 };
