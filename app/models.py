@@ -1,6 +1,8 @@
 import enum
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Enum
+from sqlalchemy import (
+    Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Enum, Index,
+)
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -32,20 +34,30 @@ class Student(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     registration_date = Column(DateTime, default=datetime.now, nullable=False, index=True)
-    
+
     category = Column(Enum(CategoryEnum), nullable=False, index=True)
-    
+
+    # Prioridade numérica da categoria (1=mais prioritário). Materializar em
+    # coluna permite que o MySQL use índice composto na ORDER BY da fila —
+    # antes, o `ORDER BY CASE(...)` forçava filesort em toda leitura.
+    # Preenchido em create_student/update_student. Nullable=True por causa da
+    # migração em instalações existentes (ver app/migrations.py).
+    category_priority = Column(Integer, nullable=True, index=True)
+
     # Dados do Candidato
     student_name = Column(String(200), nullable=False)
     student_birth = Column(String(20), nullable=True)
     student_rg = Column(String(30), nullable=True)
     student_cpf = Column(String(20), nullable=True, index=True)
+    # CPF só com dígitos — usado para busca/comparação sem carregar a tabela
+    # toda em memória (ver find_student_by_cpf em crud.py).
+    student_cpf_digits = Column(String(11), nullable=True, index=True)
     student_nat = Column(String(100), nullable=True)
     student_grade = Column(String(100), nullable=False)
     student_shift = Column(String(50), nullable=False)
     student_laudo = Column(String(10), default="Não")
     laudo_desc = Column(Text, nullable=True)
-    
+
     # Regra de Negócio: Bônus de Irmão
     irmao_qty = Column(Integer, default=0)
     possui_irmao = Column(Boolean, default=False, index=True)
@@ -73,6 +85,13 @@ class Student(Base):
     email_outro = Column(String(150), nullable=True)
     resp_fin = Column(String(50), nullable=False)
     resp_acad = Column(String(50), nullable=False)
+
+    # Índice composto usado pela ORDER BY da fila em get_ordered_queue.
+    # Ordem das colunas = ordem dos critérios de ordenação.
+    __table_args__ = (
+        Index("idx_queue_order",
+              "category_priority", "possui_irmao", "registration_date"),
+    )
 
     # Relacionamentos
     irmaos = relationship("Sibling", back_populates="student", cascade="all, delete-orphan")
