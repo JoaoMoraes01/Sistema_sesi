@@ -6,13 +6,13 @@
  * importamos tudo e "plugamos" em `window` as funções que o HTML chama
  * via onclick/onsubmit/onchange.
  */
-import { applyAccessibilityPreferences, changeFontSize, toggleHighContrast, toggleDyslexiaFont, toggleLineSpacing, resetAccessibility, toggleAccessibilityPanel } from './accessibility.js?v=14';
-import { closeSuccessBanner } from './ui.js?v=14';
-import { restoreSession, toggleTheme, handleLogin, logout, switchTab } from './auth.js?v=14';
-import { checkLaudo, checkIrmao, handleFormSubmit, closeReceipt, showReceiptById, renderVagas, filterTable, editStudent, cancelEdit, deleteStudent, formatCPF, formatCNPJ, formatCEP, formatTelefone, formatRG, onlyLetters, toggleOtherField } from './students.js?v=14';
-import { clearHistory } from './history.js?v=14';
-import { addReminder, toggleReminder, deleteReminder, clearCompletedReminders, toggleCompletedReminders } from './reminders.js?v=14';
-import { handleCreateUser, editUser, cancelUserEdit, apagarUsuario } from './users.js?v=14';
+import { applyAccessibilityPreferences, changeFontSize, toggleHighContrast, toggleDyslexiaFont, toggleLineSpacing, resetAccessibility, toggleAccessibilityPanel } from './accessibility.js?v=15';
+import { closeSuccessBanner } from './ui.js?v=15';
+import { restoreSession, toggleTheme, handleLogin, logout, switchTab } from './auth.js?v=15';
+import { checkLaudo, checkIrmao, handleFormSubmit, closeReceipt, showReceiptById, renderVagas, filterTable, editStudent, cancelEdit, deleteStudent, formatCPF, formatCNPJ, formatCEP, formatTelefone, formatRG, onlyLetters, toggleOtherField } from './students.js?v=15';
+import { clearHistory } from './history.js?v=15';
+import { addReminder, toggleReminder, deleteReminder, clearCompletedReminders, toggleCompletedReminders } from './reminders.js?v=15';
+import { handleCreateUser, editUser, cancelUserEdit, apagarUsuario } from './users.js?v=15';
 
 function initEvents() {
     // Nota: <form id="studentForm"> já dispara handleFormSubmit via atributo
