@@ -7,12 +7,12 @@
  * (nunca executado no load do módulo), e essas funções só rodam depois de
  * um clique ou de um login.
  */
-import { appState, API_URL } from './state.js?v=14';
-import { renderVagas, filterTable, renderVagasTableOnly } from './students.js?v=14';
-import { renderReminders } from './reminders.js?v=14';
-import { renderHistory } from './history.js?v=14';
-import { renderUsers } from './users.js?v=14';
-import { showToast } from './ui.js?v=14';
+import { appState, API_URL } from './state.js?v=15';
+import { renderVagas, filterTable, renderVagasTableOnly } from './students.js?v=15';
+import { renderReminders } from './reminders.js?v=15';
+import { renderHistory } from './history.js?v=15';
+import { renderUsers } from './users.js?v=15';
+import { showToast } from './ui.js?v=15';
 
 const SESSION_KEY = 'sesi_session';
 
@@ -69,7 +69,19 @@ function enterApp(session) {
     }
 
     applyRolePermissions();
-    renderAll();
+
+    // Mostra o overlay de carregamento enquanto renderAll() busca os dados
+    // iniciais (fila, lembretes, e — para admin — histórico e usuários).
+    // Sem isto, a tela fica visível mas vazia por 1-3s, o que o usuário
+    // interpreta como "login lento". Agora a espera é explícita e honesta.
+    const loading = document.getElementById('appLoading');
+    if (loading) loading.classList.add('active');
+
+    renderAll()
+        .catch((err) => console.error('Erro ao carregar dados iniciais:', err))
+        .finally(() => {
+            if (loading) loading.classList.remove('active');
+        });
 }
 
 /**
@@ -99,6 +111,15 @@ function toggleTheme() {
 async function handleLogin(event) {
     event.preventDefault();
 
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    // Previne double-submit (clique duplo / Enter repetido enquanto o
+    // bcrypt do servidor ainda está verificando o hash, ~250ms).
+    if (submitBtn?.disabled) return;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Entrando...';
+    }
+
     const user = document.getElementById('loginUser').value.trim();
     const pass = document.getElementById('loginPass').value.trim();
     const loginError = document.getElementById('loginError');
@@ -122,6 +143,13 @@ async function handleLogin(event) {
                 loginError.textContent = "Usuário ou senha incorretos.";
                 loginError.style.display = 'block';
             }
+        } else if (response.status === 429) {
+            // Bloqueio anti força bruta (5 tentativas erradas em 5 min).
+            const errData = await response.json().catch(() => ({}));
+            if (loginError) {
+                loginError.textContent = errData.detail || "Muitas tentativas. Aguarde alguns minutos.";
+                loginError.style.display = 'block';
+            }
         } else {
             if (loginError) {
                 loginError.textContent = "Erro ao processar requisição no servidor.";
@@ -133,6 +161,14 @@ async function handleLogin(event) {
         if (loginError) {
             loginError.textContent = "Não foi possível conectar à API na porta 8000.";
             loginError.style.display = 'block';
+        }
+    } finally {
+        // Sempre reativa o botão — o overlay é escondido no sucesso, mas no
+        // logout posterior ele volta a aparecer, e o botão precisa estar
+        // clicável de novo.
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Entrar';
         }
     }
 }
@@ -224,6 +260,10 @@ function logout() {
     appState.allStudents = [];
     appState.allUsers = [];
     appState.allReminders = [];
+
+    // Garante que o overlay de loading não fica preso se o usuário sair
+    // durante o carregamento inicial.
+    document.getElementById('appLoading')?.classList.remove('active');
 
     if (loginOverlay) loginOverlay.style.display = 'flex';
     if (appContainer) appContainer.style.display = 'none';
