@@ -1,9 +1,9 @@
 /*
  * Painel Admin: gestão dos usuários que têm login no sistema.
  */
-import { appState, API_URL, authHeaders, escapeHtml } from './state.js';
-import { showToast, showConfirm, showSuccessBanner } from './ui.js';
-import { handleAuthResponse } from './auth.js';
+import { appState, API_URL, authHeaders, escapeHtml } from './state.js?v=14';
+import { showToast, showConfirm, showSuccessBanner } from './ui.js?v=14';
+import { handleAuthResponse } from './auth.js?v=14';
 
 async function handleCreateUser(event) {
     event.preventDefault();
