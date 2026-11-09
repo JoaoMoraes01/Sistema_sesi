@@ -3,7 +3,7 @@
  */
 import { appState, API_URL, authHeaders, escapeHtml } from './state.js';
 import { showToast, showConfirm, showSuccessBanner } from './ui.js';
-import { renderAll, handleAuthResponse } from './auth.js';
+import { handleAuthResponse } from './auth.js';
 
 async function handleCreateUser(event) {
     event.preventDefault();
@@ -26,12 +26,13 @@ async function handleCreateUser(event) {
                 body: JSON.stringify(payload)
             });
 
-            if (!handleAuthResponse(response)) return; // token expirado/inválido: já desloga sozinho
+            if (!handleAuthResponse(response)) return;
 
             if (response.ok) {
                 showSuccessBanner('O usuário foi atualizado com sucesso.', 'Usuário atualizado!');
                 cancelUserEdit();
-                renderAll();
+                // Só a lista de usuários mudou — não recarrega fila/histórico.
+                await renderUsers();
             } else {
                 const errorData = await response.json();
                 showToast(`Erro ao atualizar: ${errorData.detail || 'verifique os campos.'}`, 'error');
@@ -57,12 +58,13 @@ async function handleCreateUser(event) {
             body: JSON.stringify(payload)
         });
 
-        if (!handleAuthResponse(response)) return; // token expirado/inválido: já desloga sozinho
+        if (!handleAuthResponse(response)) return;
 
         if (response.ok) {
             showSuccessBanner('O novo usuário foi cadastrado com sucesso.', 'Usuário cadastrado!');
             document.getElementById('userForm').reset();
-            renderAll(); 
+            // Só a lista de usuários mudou — não recarrega fila/histórico.
+            await renderUsers();
         } else {
             const errorData = await response.json();
             showToast(`Erro ao cadastrar: ${errorData.detail}`, 'error');
@@ -73,7 +75,6 @@ async function handleCreateUser(event) {
     }
 }
 
-// Preenche o formulário de usuário para edição (substitui o antigo fluxo baseado em prompt())
 function editUser(login) {
     const user = appState.allUsers.find((u) => u.login === login);
     if (!user) {
@@ -128,19 +129,19 @@ function cancelUserEdit() {
 async function renderUsers() {
     try {
         const response = await fetch(`${API_URL}/users`, { headers: authHeaders() });
-        if (!handleAuthResponse(response)) return; // token expirado/inválido: já desloga sozinho
+        if (!handleAuthResponse(response)) return;
         if (!response.ok) return;
-        
+
         const users = await response.json();
-        appState.allUsers = users; // cache usada pela edição (evita nova chamada à API ao clicar em "Editar")
+        appState.allUsers = users;
         const tbody = document.getElementById('usersTableBody');
         if (!tbody) return;
-        
+
         if (users.length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Nenhum usuário.</td></tr>';
             return;
         }
-        
+
         tbody.innerHTML = users.map((u) => `
             <tr>
                 <td>${escapeHtml(u.name)}</td>
@@ -159,15 +160,13 @@ async function renderUsers() {
     }
 }
 
-// === APAGAR USUÁRIO ===
-
 async function apagarUsuario(login) {
     const confirmed = await showConfirm(`Tem certeza que deseja apagar o usuário ${login}?`);
     if (!confirmed) return;
-    
+
     try {
         const response = await fetch(`${API_URL}/users/${login}`, { method: 'DELETE', headers: authHeaders() });
-        if (!handleAuthResponse(response)) return; // token expirado/inválido: já desloga sozinho
+        if (!handleAuthResponse(response)) return;
         if (response.ok) {
             showSuccessBanner('O usuário foi removido com sucesso.', 'Usuário removido!');
             renderUsers();
