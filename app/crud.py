@@ -1,40 +1,49 @@
 import secrets
-from sqlalchemy.orm import Session
-from sqlalchemy import case, asc
-from app.models import Student, Sibling, HistoryLog, User, CategoryEnum, UserRoleEnum, Reminder
-from app.schemas import StudentCreate, UserCreate
 from datetime import datetime
+
+from sqlalchemy.orm import Session, selectinload
+
+from app.models import (
+    Student, Sibling, HistoryLog, User, CategoryEnum, UserRoleEnum, Reminder,
+)
+from app.schemas import StudentCreate
 from app.security import hash_password
 from app.config import settings
 
 # --- MAPEAMENTO DE PRIORIDADE DE CATEGORIA ---
+# Usado para preencher `Student.category_priority`, que permite ORDER BY
+# com índice composto (ver idx_queue_order em models.py).
 CATEGORY_PRIORITY = {
     CategoryEnum.INDUSTRIARIO: 1,
     CategoryEnum.COLABORADOR: 2,
     CategoryEnum.EMPRESARIO: 3,
     CategoryEnum.CONVENIO: 4,
-    CategoryEnum.COMUNIDADE: 5
+    CategoryEnum.COMUNIDADE: 5,
 }
+
+def _cpf_digits(cpf: str | None) -> str | None:
+    """Normaliza CPF para comparação/busca: só dígitos."""
+    if not cpf:
+        return None
+    digits = "".join(ch for ch in cpf if ch.isdigit())
+    return digits or None
 
 def find_student_by_cpf(db: Session, cpf: str, exclude_id: int = None):
     """
-    Procura um aluno com o mesmo CPF, ignorando diferenças de formatação
-    (com ou sem pontos/traço) — assim, "529.982.247-25" e "52998224725"
-    são reconhecidos como o mesmo CPF na hora de checar duplicidade.
+    Procura um aluno com o mesmo CPF, ignorando diferenças de formatação.
+
+    Antes: carregava TODOS os alunos em memória e comparava em Python (O(n)
+    por consulta, com deserialização de cada linha). Agora usa a coluna
+    `student_cpf_digits` (indexada), resolvendo no banco em O(log n).
     """
-    digits = "".join(ch for ch in (cpf or "") if ch.isdigit())
+    digits = _cpf_digits(cpf)
     if not digits:
         return None
 
-    query = db.query(Student).filter(Student.student_cpf.isnot(None))
+    query = db.query(Student).filter(Student.student_cpf_digits == digits)
     if exclude_id is not None:
         query = query.filter(Student.id != exclude_id)
-
-    for student in query.all():
-        student_digits = "".join(ch for ch in (student.student_cpf or "") if ch.isdigit())
-        if student_digits == digits:
-            return student
-    return None
+    return query.first()
 
 def create_default_user(db: Session):
     """Cria o usuário 'admin' padrão caso não exista no banco de dados."""
@@ -42,14 +51,8 @@ def create_default_user(db: Session):
     if user_exists:
         return
 
-    # A senha inicial NÃO fica mais escrita aqui no código (qualquer pessoa com
-    # acesso aos arquivos do projeto — zip, pen drive, GitHub — conheceria a
-    # senha do administrador). Ela vem do arquivo .env (ADMIN_DEFAULT_PASSWORD).
     senha_inicial = settings.ADMIN_DEFAULT_PASSWORD
     if not senha_inicial:
-        # Se ninguém definiu no .env, geramos uma senha aleatória forte e
-        # mostramos UMA vez aqui no console do servidor — ela nunca fica salva
-        # em texto puro em lugar nenhum (no banco vai só o hash bcrypt).
         senha_inicial = secrets.token_urlsafe(12)
         print("!" * 60)
         print("ATENCAO: ADMIN_DEFAULT_PASSWORD nao definida no .env.")
@@ -61,30 +64,48 @@ def create_default_user(db: Session):
         name="Administrador",
         login="admin",
         pass_hash=hash_password(senha_inicial),
-        role=UserRoleEnum.ADMIN
+        role=UserRoleEnum.ADMIN,
     )
     db.add(admin_user)
     db.commit()
 
 def migrate_password_to_hash(db: Session, user: User, plain_password: str):
-    """
-    Re-salva a senha de uma conta antiga (ainda em texto puro) já com hash,
-    na hora do login — sem precisar de nenhum passo manual e sem derrubar
-    o acesso de ninguém.
-    """
+    """Re-salva a senha de uma conta antiga já com hash, no primeiro login."""
     user.pass_hash = hash_password(plain_password)
     db.commit()
 
+# --- HELPERS DE LOG ---
+
+def _log_no_commit(db: Session, action: str, details: str, user_name: str) -> None:
+    """Adiciona o log na sessão SEM commitar — quem chamou faz o commit único."""
+    db.add(HistoryLog(action=action, details=details, user_name=user_name))
+
+def add_log(db: Session, action: str, details: str, user_name: str):
+    """
+    Adiciona o log e commita na hora. Usado por fluxos com um único INSERT
+    (ex: rotas de usuário). Para operações com vários INSERTs, use
+    _log_no_commit antes do commit único.
+    """
+    _log_no_commit(db, action, details, user_name)
+    db.commit()
+
+# --- CRUD DE ALUNO ---
+
 def create_student(db: Session, student_in: StudentCreate, user_name: str) -> Student:
-    # Regra: Se tem 1 ou mais irmãos, possui_irmao = True (Bônus único)
+    """
+    Cadastra aluno + irmãos + log em UM ÚNICO commit.
+    Antes eram 3 commits por aluno (500+ round-trips extras no seed de 300).
+    """
     has_sibling = student_in.irmaoQty > 0 or len(student_in.irmaos) > 0
 
     db_student = Student(
         category=student_in.category,
+        category_priority=CATEGORY_PRIORITY[student_in.category],
         student_name=student_in.studentName,
         student_birth=student_in.studentBirth,
         student_rg=student_in.studentRg,
         student_cpf=student_in.studentCpf,
+        student_cpf_digits=_cpf_digits(student_in.studentCpf),
         student_nat=student_in.studentNat,
         student_grade=student_in.studentGrade,
         student_shift=student_in.studentShift,
@@ -116,56 +137,58 @@ def create_student(db: Session, student_in: StudentCreate, user_name: str) -> St
         resp_acad=student_in.respAcad,
     )
     db.add(db_student)
-    db.commit()
-    db.refresh(db_student)
+    db.flush()  # força o INSERT para gerar o id, sem commitar
 
-    # Cadastro dos irmãos detalhados
     for sib in student_in.irmaos:
-        db_sib = Sibling(student_id=db_student.id, nome=sib.nome, serie=sib.serie)
-        db.add(db_sib)
+        db.add(Sibling(student_id=db_student.id, nome=sib.nome, serie=sib.serie))
 
-    db.commit()
-    
-    # Registrar no Histórico
-    add_log(db, "Novo Cadastro", f"Aluno: {db_student.student_name} ({db_student.category.value})", user_name)
+    _log_no_commit(
+        db, "Novo Cadastro",
+        f"Aluno: {db_student.student_name} ({db_student.category.value})",
+        user_name,
+    )
+
+    db.commit()  # commit único
+    db.refresh(db_student)
     return db_student
 
 def get_ordered_queue(db: Session):
     """
-    Ordenação da fila conforme as especificações de negócio:
-    1. Categoria (1 a 5)
-    2. Possui Irmão (True [1] antes de False [0])
-    3. Data/Hora de cadastro (Mais antigo primeiro)
-    """
-    category_order = case(
-        (Student.category == CategoryEnum.INDUSTRIARIO, 1),
-        (Student.category == CategoryEnum.COLABORADOR, 2),
-        (Student.category == CategoryEnum.EMPRESARIO, 3),
-        (Student.category == CategoryEnum.CONVENIO, 4),
-        (Student.category == CategoryEnum.COMUNIDADE, 5),
-        else_=99
-    )
+    Fila ordenada pelos critérios de negócio:
+    1. Categoria (prioridade numérica)
+    2. Possui irmão (True antes de False)
+    3. Data/hora de cadastro (mais antigo primeiro)
 
-    query = db.query(Student).order_by(
-        category_order.asc(),
-        Student.possui_irmao.desc(),
-        Student.registration_date.asc()
+    Usa `selectinload(Student.irmaos)` para evitar N+1 queries (antes: 1 query
+    por aluno só para buscar os irmãos), e ordena por `category_priority`
+    (coluna indexada via idx_queue_order) em vez de `CASE(...)`, que o MySQL
+    não consegue otimizar com índice.
+    """
+    query = (
+        db.query(Student)
+        .options(selectinload(Student.irmaos))
+        .order_by(
+            Student.category_priority.asc(),
+            Student.possui_irmao.desc(),
+            Student.registration_date.asc(),
+        )
     )
-    
     return query.all()
 
 def get_student_by_id(db: Session, student_id: int) -> Student | None:
     return db.query(Student).filter(Student.id == student_id).first()
 
 def update_student(db: Session, db_student: Student, student_in: StudentCreate, user_name: str) -> Student:
-    """Atualiza todos os campos do aluno e substitui a lista de irmãos."""
+    """Atualiza todos os campos do aluno, substitui irmãos e loga — em UM commit."""
     has_sibling = student_in.irmaoQty > 0 or len(student_in.irmaos) > 0
 
     db_student.category = student_in.category
+    db_student.category_priority = CATEGORY_PRIORITY[student_in.category]
     db_student.student_name = student_in.studentName
     db_student.student_birth = student_in.studentBirth
     db_student.student_rg = student_in.studentRg
     db_student.student_cpf = student_in.studentCpf
+    db_student.student_cpf_digits = _cpf_digits(student_in.studentCpf)
     db_student.student_nat = student_in.studentNat
     db_student.student_grade = student_in.studentGrade
     db_student.student_shift = student_in.studentShift
@@ -196,34 +219,35 @@ def update_student(db: Session, db_student: Student, student_in: StudentCreate, 
     db_student.resp_fin = student_in.respFin
     db_student.resp_acad = student_in.respAcad
 
-    # Substitui os irmãos detalhados (remove os antigos e insere os novos)
+    # Substitui irmãos (remove antigos e insere novos). O flush força o DELETE
+    # antes dos INSERTs, evitando qualquer conflito residual.
     for sib in list(db_student.irmaos):
         db.delete(sib)
     db.flush()
     for sib in student_in.irmaos:
         db.add(Sibling(student_id=db_student.id, nome=sib.nome, serie=sib.serie))
 
+    _log_no_commit(
+        db, "Edição de Cadastro",
+        f"Aluno: {db_student.student_name} ({db_student.category.value})",
+        user_name,
+    )
+
     db.commit()
     db.refresh(db_student)
-
-    add_log(db, "Edição de Cadastro", f"Aluno: {db_student.student_name} ({db_student.category.value})", user_name)
     return db_student
 
 def delete_student(db: Session, db_student: Student, user_name: str):
     nome = db_student.student_name
     categoria = db_student.category.value
     db.delete(db_student)
+    _log_no_commit(db, "Exclusão de Cadastro", f"Aluno: {nome} ({categoria})", user_name)
     db.commit()
-    add_log(db, "Exclusão de Cadastro", f"Aluno: {nome} ({categoria})", user_name)
 
 def clear_history(db: Session, user_name: str):
     db.query(HistoryLog).delete()
-    db.commit()
-    add_log(db, "Limpeza de Histórico", "Todo o histórico de atividades foi apagado", user_name)
-
-def add_log(db: Session, action: str, details: str, user_name: str):
-    log = HistoryLog(action=action, details=details, user_name=user_name)
-    db.add(log)
+    _log_no_commit(db, "Limpeza de Histórico",
+                   "Todo o histórico de atividades foi apagado", user_name)
     db.commit()
 
 # --- LEMBRETES ---
