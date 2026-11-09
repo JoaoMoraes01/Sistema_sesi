@@ -7,12 +7,12 @@
  * (nunca executado no load do módulo), e essas funções só rodam depois de
  * um clique ou de um login.
  */
-import { appState, API_URL } from './state.js';
-import { renderVagas, filterTable, renderVagasTableOnly } from './students.js';
-import { renderReminders } from './reminders.js';
-import { renderHistory } from './history.js';
-import { renderUsers } from './users.js';
-import { showToast } from './ui.js';
+import { appState, API_URL } from './state.js?v=14';
+import { renderVagas, filterTable, renderVagasTableOnly } from './students.js?v=14';
+import { renderReminders } from './reminders.js?v=14';
+import { renderHistory } from './history.js?v=14';
+import { renderUsers } from './users.js?v=14';
+import { showToast } from './ui.js?v=14';
 
 const SESSION_KEY = 'sesi_session';
 
