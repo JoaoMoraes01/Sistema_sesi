@@ -2,9 +2,9 @@
  * Tudo relacionado a Aluno: formulário de cadastro/edição, validação de CPF,
  * comprovante (recibo), fila (Lista & Busca e Vagas e Ocupação).
  */
-import { appState, API_URL, authHeaders, escapeHtml } from './state.js';
-import { showToast, showConfirm, showSuccessBanner } from './ui.js';
-import { switchTabDirect, switchTab, handleAuthResponse } from './auth.js';
+import { appState, API_URL, authHeaders, escapeHtml } from './state.js?v=14';
+import { showToast, showConfirm, showSuccessBanner } from './ui.js?v=14';
+import { switchTabDirect, switchTab, handleAuthResponse } from './auth.js?v=14';
 
 // --- LISTAS FECHADAS ---
 const GRADE_OPTIONS = [
