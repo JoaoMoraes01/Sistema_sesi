@@ -1,15 +1,10 @@
 /*
  * Ponto de entrada do front-end.
  *
- * O HTML usa atributos onclick="nomeDaFuncao(...)" em vários lugares (ex:
- * <button onclick="logout()">). Isso só funciona se a função existir no
- * escopo GLOBAL do navegador — mas funções dentro de um módulo ES (import/
- * export) NÃO são globais por padrão, ficam isoladas dentro do módulo.
- *
- * Por isso, este arquivo importa tudo que os outros módulos exportam, e
- * "pluga" explicitamente em `window` só as funções que o HTML realmente
- * chama via onclick/onsubmit/onchange — o resto continua só circulando
- * entre os módulos via import/export, do jeito normal.
+ * O HTML usa atributos onclick="nomeDaFuncao(...)" em vários lugares. Isso
+ * só funciona se a função existir no escopo GLOBAL do navegador — por isso
+ * importamos tudo e "plugamos" em `window` as funções que o HTML chama
+ * via onclick/onsubmit/onchange.
  */
 import { applyAccessibilityPreferences, changeFontSize, toggleHighContrast, toggleDyslexiaFont, toggleLineSpacing, resetAccessibility, toggleAccessibilityPanel } from './accessibility.js';
 import { closeSuccessBanner } from './ui.js';
@@ -20,19 +15,20 @@ import { addReminder, toggleReminder, deleteReminder, clearCompletedReminders, t
 import { handleCreateUser, editUser, cancelUserEdit, apagarUsuario } from './users.js';
 
 function initEvents() {
-    // O <form id="studentForm"> já dispara handleFormSubmit via atributo onsubmit no HTML.
-    // NÃO registrar addEventListener aqui também — isso fazia o formulário ser enviado
-    // duas vezes a cada clique em "Salvar", duplicando o cadastro no banco de dados.
-
-    const totalVagasInput = document.getElementById('totalVagasInput');
-    if (totalVagasInput) totalVagasInput.addEventListener('input', renderVagas);
+    // Nota: <form id="studentForm"> já dispara handleFormSubmit via atributo
+    // onsubmit no HTML. NÃO registrar addEventListener aqui também — isso
+    // fazia o formulário ser enviado duas vezes a cada clique em "Salvar".
+    //
+    // Mesma regra para #totalVagasInput: ele já tem oninput="renderVagas()"
+    // no HTML. Antes, adicionávamos também um addEventListener aqui — o que
+    // resultava em DUAS chamadas de renderVagas por tecla digitada
+    // (dois fetches completos a cada digitação). Removido.
 
     const btnTheme = document.querySelector('.btn-theme');
     if (btnTheme) {
         btnTheme.addEventListener('click', toggleTheme);
     }
 
-    // Fecha o painel de acessibilidade ao clicar fora dele
     document.addEventListener('click', (event) => {
         const panel = document.getElementById('accessibilityPanel');
         const toggleBtn = document.getElementById('accessibilityToggle');
@@ -43,10 +39,6 @@ function initEvents() {
     });
 
     // --- MENU MOBILE ---
-    // No mobile (<= 900px) a sidebar vira off-canvas. Ao clicar em qualquer
-    // link de navegação ou no botão "Sair", o menu precisa se fechar sozinho
-    // para não ficar por cima do conteúdo. No desktop (> 900px) isso não tem
-    // efeito (a classe .open nem chega a ser usada).
     document.querySelectorAll('.sidebar .nav-link, .sidebar .btn-logout').forEach((el) => {
         el.addEventListener('click', () => {
             if (window.matchMedia('(max-width: 900px)').matches) {
@@ -55,8 +47,6 @@ function initEvents() {
         });
     });
 
-    // Fecha o menu mobile ao clicar fora dele (mas não se o clique for no
-    // próprio menu nem no botão hambúrguer que o abre).
     document.addEventListener('click', (event) => {
         const sidebar = document.querySelector('.sidebar');
         const menuBtn = document.querySelector('.btn-menu');
