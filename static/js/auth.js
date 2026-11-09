@@ -2,16 +2,13 @@
  * Autenticação, sessão e navegação entre abas.
  *
  * Nota sobre os imports de students.js/reminders.js/history.js/users.js:
- * existe uma dependência "circular" entre este arquivo e alguns deles
- * (ex: students.js importa `switchTabDirect` daqui, e aqui importamos
- * `renderVagas` de students.js). Isso é seguro em módulos ES desde que
- * o uso aconteça sempre DENTRO de uma função (nunca executado assim que
- * o módulo carrega) — que é exatamente o caso aqui: essas funções só
- * rodam depois de um clique ou de um login, bem depois de tudo já ter
- * sido carregado.
+ * existe uma dependência "circular" entre este arquivo e alguns deles — isso
+ * é seguro em módulos ES porque o uso acontece sempre DENTRO de uma função
+ * (nunca executado no load do módulo), e essas funções só rodam depois de
+ * um clique ou de um login.
  */
 import { appState, API_URL } from './state.js';
-import { renderVagas } from './students.js';
+import { renderVagas, filterTable, renderVagasTableOnly } from './students.js';
 import { renderReminders } from './reminders.js';
 import { renderHistory } from './history.js';
 import { renderUsers } from './users.js';
@@ -36,7 +33,7 @@ function restoreSession() {
         const session = JSON.parse(raw);
         if (!session.token || isTokenExpired(session.token)) {
             localStorage.removeItem(SESSION_KEY);
-            return; // deixa a tela de login aparecer normalmente, sem sessão expirada
+            return;
         }
         enterApp(session);
     } catch (error) {
@@ -45,18 +42,16 @@ function restoreSession() {
     }
 }
 
-// Lê a data de expiração de dentro do próprio token (JWT), sem precisar perguntar
-// ao servidor — evita reabrir a sessão sozinho com um token que já não serve mais.
+// Lê a data de expiração do próprio token JWT, sem precisar perguntar ao servidor
 function isTokenExpired(token) {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         return !payload.exp || (Date.now() / 1000) >= payload.exp;
     } catch (error) {
-        return true; // token ilegível = trata como expirado, por segurança
+        return true;
     }
 }
 
-// Centraliza o que acontece ao "entrar" no sistema, seja por login novo ou por sessão restaurada
 function enterApp(session) {
     appState.currentUserRole = session.role;
     appState.currentUserName = session.name || session.username;
@@ -77,14 +72,20 @@ function enterApp(session) {
     renderAll();
 }
 
-// Busca tudo que a tela precisa mostrar assim que a pessoa entra no sistema
+/**
+ * Carrega tudo que a tela precisa ao entrar no sistema.
+ *
+ * Antes: fetches em série (`await` um após o outro) — 4 round-trips somados
+ * no login de um admin. Agora: `Promise.all` dispara tudo em paralelo. Em
+ * rede local cada request cai de ~50ms; em Wi-Fi de escola, a soma pode
+ * economizar 1 segundo ou mais.
+ */
 async function renderAll() {
-    await renderVagas(); // alimenta appState.allStudents + abas "Vagas" e "Lista & Busca" (esta última visível para ambos os papéis)
-    await renderReminders(); // alimenta o badge de pendentes na barra lateral, visível para ambos os papéis
+    const tarefas = [renderVagas(), renderReminders()];
     if (appState.currentUserRole === 'admin') {
-        await renderHistory();
-        await renderUsers();
+        tarefas.push(renderHistory(), renderUsers());
     }
+    await Promise.all(tarefas);
 }
 
 function toggleTheme() {
@@ -111,7 +112,7 @@ async function handleLogin(event) {
 
         if (response.ok) {
             const data = await response.json();
-            data.token = data.access_token; // normaliza o nome do campo (a API devolve "access_token")
+            data.token = data.access_token;
 
             if (loginError) loginError.style.display = 'none';
             saveSession(data);
@@ -136,8 +137,6 @@ async function handleLogin(event) {
     }
 }
 
-// Confere se uma resposta veio com 401 (token expirado/inválido) e, se sim,
-// desloga automaticamente em vez de deixar tudo travado sem explicação.
 function handleAuthResponse(response) {
     if (response.status === 401) {
         showToast('Sua sessão expirou. Faça login novamente.', 'error');
@@ -187,14 +186,29 @@ function switchTabDirect(tabId) {
     if (activeNav) activeNav.classList.add('active');
 }
 
+/**
+ * Troca de aba. Re-renderiza do CACHE quando possível, em vez de refazer o
+ * fetch pesado. Antes, cada clique em "Lista & Busca" ou "Vagas e Ocupação"
+ * disparava `GET /api/students/queue` de novo — essa era a lentidão mais
+ * percebida pelo usuário.
+ */
 function switchTab(event, tabId) {
     if (event) event.preventDefault();
     switchTabDirect(tabId);
-    if (tabId === 'tab-lista' || tabId === 'tab-vagas') {
-        renderVagas();
-    }
-    if (tabId === 'tab-lembretes') {
+
+    if (tabId === 'tab-lista') {
+        // Re-renderiza a partir de appState.allStudents (já carregado no login/CRUD)
+        filterTable(true);
+    } else if (tabId === 'tab-vagas') {
+        // Idem, mas na tabela de vagas
+        renderVagasTableOnly();
+    } else if (tabId === 'tab-lembretes') {
         renderReminders();
+    } else if (tabId === 'tab-historico' && appState.currentUserRole === 'admin') {
+        // Histórico e Admin são abas menos usadas — sempre frescos ao abrir.
+        renderHistory();
+    } else if (tabId === 'tab-admin' && appState.currentUserRole === 'admin') {
+        renderUsers();
     }
 }
 
