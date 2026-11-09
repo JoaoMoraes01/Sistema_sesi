@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão Escolar - SESI</title>
-    <link rel="stylesheet" href="style.css?v=14">
+    <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body data-theme="light">
 
@@ -67,6 +67,15 @@
 
     <!-- CONTAINER DA APLICAÇÃO -->
     <div id="appContainer">
+
+        <!-- OVERLAY DE CARREGAMENTO PÓS-LOGIN -->
+        <!-- Fica ativo enquanto renderAll() busca a fila, lembretes, etc.
+             Sem ele, a tela fica vazia por 1-3s e o usuário acha que o
+             login travou. Com ele, a espera é explícita e honesta. -->
+        <div id="appLoading" class="app-loading">
+            <div class="spinner"></div>
+            <p>Carregando dados...</p>
+        </div>
 
         <!-- BOTÃO HAMBÚRGUER (visível apenas no mobile, controlado pelo CSS) -->
         <button class="btn-menu" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Abrir menu">☰</button>
@@ -573,6 +582,6 @@
     </div>
 
     <div id="toastBox"></div>
-    <script type="module" src="js/main.js?v=14"></script>
+    <script type="module" src="js/main.js?v=15"></script>
 </body>
 </html>
